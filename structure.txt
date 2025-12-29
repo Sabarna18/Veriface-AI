@@ -1,0 +1,96 @@
+face-attendance-system/
+│
+├── backend/
+│   │
+│   ├── pyproject.toml
+│   ├── README.md
+│   ├── .env
+│   ├── .gitignore
+│
+│   ├── data/
+│   │   ├── raw/
+│   │   │   └── registrations/         # Raw captured face images
+│   │   │
+│   │   ├── processed/
+│   │   │   └── aligned_faces/          # Preprocessed & aligned faces
+│   │   │
+│   │   ├── embeddings/
+│   │   │   └── face_embeddings.pkl     # Stored DeepFace embeddings
+│   │   │
+│   │   └── attendance/
+│   │       └── attendance_log.csv      # Daily attendance records
+│
+│   ├── models/
+│   │   └── deepface/
+│   │       └── arcface_model.h5        # Cached model (optional)
+│
+│   ├── src/
+│   │   ├── main.py                     # FastAPI app entry point
+│   │   │
+│   │   ├── api/
+│   │   │   ├── __init__.py
+│   │   │   ├── attendance.py           # Mark & fetch attendance
+│   │   │   ├── registration.py         # User registration API
+│   │   │   ├── recognition.py          # Face verification API
+│   │   │   └── health.py               # Health check
+│   │   │
+│   │   ├── core/
+│   │   │   ├── __init__.py
+│   │   │   ├── config.py               # Environment & constants
+│   │   │   ├── camera.py               # Webcam / CCTV capture
+│   │   │   ├── face_detector.py        # Face detection logic
+│   │   │   ├── face_recognizer.py      # DeepFace verification
+│   │   │   ├── embedding_manager.py    # Create / load embeddings
+│   │   │   └── attendance_manager.py   # Attendance logic
+│   │   │
+│   │   ├── schemas/
+│   │   │   ├── __init__.py
+│   │   │   ├── user.py                 # Pydantic user models
+│   │   │   └── attendance.py           # Attendance response models
+│   │   │
+│   │   ├── utils/
+│   │   │   ├── __init__.py
+│   │   │   ├── image_utils.py          # Resize, crop, normalize
+│   │   │   ├── time_utils.py           # Date & time helpers
+│   │   │   └── file_utils.py           # File I/O helpers
+│   │   │
+│   │   └── db/
+│   │       ├── __init__.py
+│   │       ├── database.py             # SQLite / PostgreSQL setup
+│   │       └── models.py               # ORM models (optional)
+│
+│   ├── scripts/
+│   │   ├── register_face.py            # CLI face registration
+│   │   ├── build_embeddings.py         # Precompute embeddings
+│   │   └── test_camera.py              # Camera diagnostics
+│
+│   ├── tests/
+│   │   ├── test_recognition.py
+│   │   ├── test_attendance.py
+│   │   └── test_camera.py
+│
+│   └── logs/
+│       └── app.log
+│
+├── frontend/react-app/
+│
+├── package.json
+├── vite.config.js
+├── index.html
+│
+└── src/
+    ├── api/
+    │   └── index.js              # Backend API wrapper
+    │
+    ├── components/
+    │   ├── WebcamCapture.jsx     # Webcam capture
+    │   ├── RegisterUser.jsx      # Register user
+    │   ├── RecognizeUser.jsx     # Face recognition
+    │   ├── AttendanceTable.jsx   # Today's attendance
+    │   └── UserManagement.jsx    # Get/Delete users
+    │
+    ├── pages/
+    │   └── Dashboard.jsx
+    │
+    ├── App.jsx
+    └── main.jsx

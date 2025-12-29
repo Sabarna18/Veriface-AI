@@ -1,0 +1,69 @@
+
+---
+
+# 🗑️ `.gitignore`
+
+```gitignore
+# ===============================
+# Python
+# ===============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+
+# ===============================
+# Virtual Environments
+# ===============================
+.venv/
+venv/
+env/
+
+# ===============================
+# Environment Variables
+# ===============================
+.env
+
+# ===============================
+# Logs
+# ===============================
+logs/
+*.log
+
+# ===============================
+# Data & Generated Files
+# ===============================
+backend/data/raw/
+backend/data/processed/
+backend/data/embeddings/
+backend/data/attendance/
+
+# ===============================
+# Model Files (Optional Cache)
+# ===============================
+backend/models/deepface/*.h5
+
+# ===============================
+# Frontend
+# ===============================
+node_modules/
+dist/
+build/
+.vite/
+
+# ===============================
+# OS / Editor
+# ===============================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ===============================
+# Test Artifacts
+# ===============================
+.pytest_cache/
+coverage/
