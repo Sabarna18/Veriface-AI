@@ -72,25 +72,64 @@ face-attendance-system/
 │   └── logs/
 │       └── app.log
 │
-├── frontend/react-app/
+├── frontend/
+├── public/
+│   └── favicon.ico
 │
-├── package.json
-├── vite.config.js
-├── index.html
+├── src/
+│   ├── api/                  ✅ DONE
+│   │   ├── attendance.js
+│   │   ├── classroom.js
+│   │   ├── recognition.js
+│   │   ├── registration.js
+│   │   ├── users.js
+│   │   └── index.js
 │
-└── src/
-    ├── api/
-    │   └── index.js              # Backend API wrapper
-    │
-    ├── components/
-    │   ├── WebcamCapture.jsx     # Webcam capture
-    │   ├── RegisterUser.jsx      # Register user
-    │   ├── RecognizeUser.jsx     # Face recognition
-    │   ├── AttendanceTable.jsx   # Today's attendance
-    │   └── UserManagement.jsx    # Get/Delete users
-    │
-    ├── pages/
-    │   └── Dashboard.jsx
-    │
-    ├── App.jsx
-    └── main.jsx
+│   ├── components/
+│   │   ├── camera/
+│   │   │   ├── WebcamCapture.jsx
+│   │   │   └── CameraOverlay.jsx
+│   │   │
+│   │   ├── layout/
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   └── ClassroomLayout.jsx
+│   │   │
+│   │   ├── tables/
+│   │   │   ├── AttendanceTable.jsx
+│   │   │   └── UsersTable.jsx
+│   │   │
+│   │   ├── ui/
+│   │   │   ├── Button.jsx
+│   │   │   ├── Modal.jsx
+│   │   │   ├── Loader.jsx
+│   │   │   └── Toast.jsx
+│   │
+│   ├── pages/
+│   │   ├── LandingPage.jsx
+│   │   ├── ClassroomListPage.jsx
+│   │   ├── ClassroomDashboardPage.jsx
+│   │   ├── RegisterUserPage.jsx
+│   │   ├── FaceScanPage.jsx
+│   │   ├── AttendancePage.jsx
+│   │   ├── UsersPage.jsx
+│   │   └── UserDetailsPage.jsx
+│   │
+│   ├── routes/                  ✅ DONE
+│   │   └── AppRouter.jsx
+│   │
+│   ├── hooks/
+│   │   ├── useCamera.js
+│   │   ├── useAttendance.js
+│   │   └── useClassroom.js
+│   │
+│   ├── context/                 ✅ DONE
+│   │   └── ClassroomContext.jsx
+│   │
+│   ├── styles/
+│   │   └── theme.css
+│   │
+│   ├── App.jsx
+│   └── main.jsx
+│
+└── package.json

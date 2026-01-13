@@ -1,0 +1,123 @@
+/* ================================
+   GLOBAL RESET & BASE
+   ================================ */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body,
+#root {
+    height: 100%;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    background-color: #f4f6f8;
+    color: #1f2933;
+}
+
+/* ================================
+   LAYOUT
+   ================================ */
+
+.classroom-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.classroom-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.classroom-content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    background-color: #f9fafb;
+}
+
+/* ================================
+   NAVBAR
+   ================================ */
+
+.navbar {
+    height: 56px;
+    background-color: #0f172a;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    justify-content: space-between;
+}
+
+.navbar-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.navbar-classroom {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.navbar-exit-btn {
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.navbar-exit-btn:hover {
+    background-color: #dc2626;
+}
+
+/* ================================
+   SIDEBAR
+   ================================ */
+
+.sidebar {
+    width: 220px;
+    background-color: #020617;
+    color: #e5e7eb;
+    padding: 16px 8px;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sidebar-link {
+    color: #e5e7eb;
+    text-decoration: none;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.sidebar-link:hover {
+    background-color: #1e293b;
+}
+
+.sidebar-link.active {
+    background-color: #2563eb;
+    color: #ffffff;
+}
+
+/* ================================
+   PAGE HEADINGS (TEMP)
+   ================================ */
+
+.page-title {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}

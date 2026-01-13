@@ -18,6 +18,7 @@ os.makedirs(FACE_DIR, exist_ok=True)
 @router.post("/")
 def register_user(
     user_id: str = Form(...),
+    classroom_id: str = Form(...),
     image: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -34,6 +35,7 @@ def register_user(
     # 3️⃣ Create DB record
     user = User(
         user_id=user_id,
+        classroom_id=classroom_id,
         face_image_path=image_path,
     )
 
@@ -44,6 +46,7 @@ def register_user(
     return {
         "message": "User registered successfully",
         "user_id": user.user_id,
+        "classroom_id": user.classroom_id,
         "created_at": user.created_at
     }
     
@@ -57,6 +60,7 @@ def get_all_registered_users(db: Session = Depends(get_db)):
             {
                 "id": user.id,
                 "user_id": user.user_id,
+                "classroom_id": user.classroom_id,
                 "face_image_path": user.face_image_path,
                 "created_at": user.created_at
             }

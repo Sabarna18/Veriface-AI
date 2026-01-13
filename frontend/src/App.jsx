@@ -1,5 +1,16 @@
-import Dashboard from "./pages/Dashboard";
+import AppRouter from "./routes/AppRouter";
+import { ClassroomProvider } from "./context/ClassroomContext";
+import { ToastProvider } from "./components/ui/Toast";
 
-export default function App() {
-  return <Dashboard />;
+function App() {
+  return (
+    <ClassroomProvider>
+      <ToastProvider>
+        <AppRouter />
+      </ToastProvider>
+
+    </ClassroomProvider>
+  );
 }
+
+export default App;

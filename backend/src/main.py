@@ -15,7 +15,7 @@ from api import (
     recognition_router,
     attendance_router,
     users_router,
-    # classroom_router
+    classroom_router
     
 )
 
@@ -53,7 +53,7 @@ app = FastAPI(
 # -------------------- CORS --------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # change to frontend URL in production
+    allow_origins=["http://localhost:5173",],  # change to frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,7 +66,7 @@ app.include_router(registration_router)
 app.include_router(recognition_router)
 app.include_router(attendance_router)
 app.include_router(users_router)
-# app.include_router(classroom_router)
+app.include_router(classroom_router)
 
 
 
