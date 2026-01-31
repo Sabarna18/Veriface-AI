@@ -5,6 +5,11 @@ import {
     createClassroom,
     deleteClassroom,
 } from "../api";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+
+
+
 
 /**
  * ClassroomListPage
@@ -13,6 +18,9 @@ import {
  * Allows creating and deleting classrooms
  */
 const ClassroomListPage = () => {
+
+    const navigate = useNavigate();
+    const { isAdmin, isAuthenticated, logout } = useAuth();
     const [classrooms, setClassrooms] = useState([]);
     const [newClassroomId, setNewClassroomId] = useState("");
 
@@ -114,13 +122,46 @@ const ClassroomListPage = () => {
         );
     }
 
+
+
     return (
+
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-12">
                     <h1 className="text-4xl font-bold text-gray-900 mb-3">Classrooms</h1>
                     <p className="text-lg text-gray-600">Manage your classrooms and access attendance systems</p>
+                </div>
+
+                {/* ================= ADMIN ACTION BAR ================= */}
+                <div className="flex justify-center mb-10">
+                    {!isAuthenticated ? (
+                        <button
+                            onClick={() => navigate("/auth/login")}
+                            className="inline-flex items-center px-6 py-3 rounded-lg bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 transition"
+                        >
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                    d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                            </svg>
+                            Admin Login
+                        </button>
+                    ) : (
+                        <div className="flex items-center gap-4 bg-emerald-50 border border-emerald-200 px-6 py-3 rounded-lg">
+                            <span className="text-emerald-700 font-semibold text-sm tracking-wide">
+                                ADMIN MODE ACTIVE
+                            </span>
+
+                            <button
+                                onClick={logout}
+                                className="text-red-600 text-sm font-medium hover:underline"
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Create Classroom Card */}
@@ -157,8 +198,8 @@ const ClassroomListPage = () => {
                             onClick={handleCreateClassroom}
                             disabled={creating}
                             className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${creating
-                                    ? "bg-indigo-400 cursor-not-allowed"
-                                    : "bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 shadow-md hover:shadow-lg"
+                                ? "bg-indigo-400 cursor-not-allowed"
+                                : "bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 shadow-md hover:shadow-lg"
                                 }`}
                         >
                             {creating ? (
@@ -232,8 +273,8 @@ const ClassroomListPage = () => {
                                         onClick={() => handleDeleteClassroom(id)}
                                         disabled={deletingId === id}
                                         className={`w-full py-2 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${deletingId === id
-                                                ? "bg-red-100 text-red-400 cursor-not-allowed"
-                                                : "bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-200 border border-red-200"
+                                            ? "bg-red-100 text-red-400 cursor-not-allowed"
+                                            : "bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-200 border border-red-200"
                                             }`}
                                     >
                                         {deletingId === id ? (

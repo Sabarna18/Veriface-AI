@@ -1,37 +1,34 @@
-# backend/tests/test_attendance.py
-
-import sys
-from pathlib import Path
-
-# -------------------- PATH FIX --------------------
-BASE_DIR = Path(__file__).resolve().parents[1]
-SRC_DIR = BASE_DIR / "src"
-sys.path.append(str(SRC_DIR))
-
-# -------------------- IMPORTS --------------------
-from core.attendance_manager import AttendanceManager
+from db.models import User, UserRole
 
 
-def test_mark_attendance():
-    """
-    Test marking attendance for a user.
-    """
-    manager = AttendanceManager()
+def test_student_can_mark_attendance(client, db):
+    user = User(
+        user_id="STU1",
+        classroom_id="C1",
+        role=UserRole.USER,
+    )
+    db.add(user)
+    db.commit()
 
-    user_id = "test_user_attendance"
+    res = client.post(
+        "/attendance/mark/STU1",
+        params={"classroom_id": "C1"},
+    )
 
-    first_mark = manager.mark_attendance(user_id)
-    second_mark = manager.mark_attendance(user_id)
-
-    assert first_mark is True
-    assert second_mark is False
+    assert res.status_code == 200
+    assert res.json()["message"] == "Attendance marked successfully"
 
 
-def test_get_today_attendance():
-    """
-    Test fetching today's attendance records.
-    """
-    manager = AttendanceManager()
-    records = manager.get_today_attendance()
+def test_duplicate_attendance_blocked(client, db):
+    user = User(
+        user_id="STU1",
+        classroom_id="C1",
+        role=UserRole.USER,
+    )
+    db.add(user)
+    db.commit()
 
-    assert isinstance(records, list)
+    client.post("/attendance/mark/STU1", params={"classroom_id": "C1"})
+    res = client.post("/attendance/mark/STU1", params={"classroom_id": "C1"})
+
+    assert "already marked" in res.json()["message"]

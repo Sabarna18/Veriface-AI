@@ -30,6 +30,10 @@ dependencies = [
     # -------- Logging / Stability --------
     "loguru>=0.7.2",
     "tf-keras>=2.20.1",
+    "passlib[argon2,bcrypt]>=1.7.4",
+    "python-jose[cryptography]>=3.5.0",
+    "pytest>=9.0.2",
+    "httpx>=0.28.1",
 ]
 
 # -------------------- OPTIONAL / DEV DEPENDENCIES --------------------

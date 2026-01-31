@@ -15,7 +15,8 @@ from api import (
     recognition_router,
     attendance_router,
     users_router,
-    classroom_router
+    classroom_router,
+    auth_router
     
 )
 
@@ -67,6 +68,7 @@ app.include_router(recognition_router)
 app.include_router(attendance_router)
 app.include_router(users_router)
 app.include_router(classroom_router)
+app.include_router(auth_router)
 
 
 

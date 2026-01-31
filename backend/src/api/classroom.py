@@ -1,10 +1,14 @@
+# backend/src/api/classrooms.py
+
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 import os
+from datetime import date
+from pydantic import BaseModel
+from core.dependencies import get_current_admin
 from db.database import get_db
-from db.models import User, Attendance
+from db.models import User, Attendance, UserRole
 
 router = APIRouter(prefix="/classrooms", tags=["Classrooms"])
 
@@ -13,60 +17,17 @@ router = APIRouter(prefix="/classrooms", tags=["Classrooms"])
 # ------------------ HELPERS ---------------------------
 # =====================================================
 
-def get_user_in_classroom(
-    db: Session,
-    user_id: str,
-    classroom_id: str,
-) -> User:
-    """
-    Fetch a user scoped to a classroom.
-    Raises 404 if not found.
-    """
-    user = (
-        db.query(User)
-        .filter(
-            User.user_id == user_id,
-            User.classroom_id == classroom_id
-        )
-        .first()
-    )
-
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found in this classroom"
-        )
-
-    return user
-
 def delete_face_image(path: str):
     if path and os.path.exists(path):
         try:
             os.remove(path)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[WARN] Failed to delete image {path}: {e}")
 
 
-def get_users_in_classroom(
-    db: Session,
-    classroom_id: str,
-) -> List[User]:
+def classroom_exists(db: Session, classroom_id: str) -> bool:
     """
-    Fetch all users in a classroom.
-    """
-    return (
-        db.query(User)
-        .filter(User.classroom_id == classroom_id)
-        .all()
-    )
-
-
-def classroom_exists(
-    db: Session,
-    classroom_id: str,
-) -> bool:
-    """
-    Classroom existence is inferred from users.
+    A classroom exists if at least one user is associated with it.
     """
     return (
         db.query(User)
@@ -76,13 +37,17 @@ def classroom_exists(
     )
 
 
+class ClassroomCreateRequest(BaseModel):
+    classroom_id: str
+
 # =====================================================
-# ------------------ ENDPOINTS -------------------------
+# ------------------ PUBLIC ENDPOINTS -----------------
 # =====================================================
 
 @router.get("/")
 def list_classrooms(db: Session = Depends(get_db)):
     """
+    🌍 PUBLIC
     List all classrooms (derived from users table).
     """
     classrooms = (
@@ -99,55 +64,23 @@ def list_classrooms(db: Session = Depends(get_db)):
     }
 
 
-@router.post("/create")
-def create_classroom(
-    classroom_id: str,
-    db: Session = Depends(get_db),
-):
-    """
-    Create a classroom by inserting a system user.
-    """
-
-    # 1️⃣ Check if classroom already exists
-    exists = (
-        db.query(User)
-        .filter(User.classroom_id == classroom_id)
-        .first()
-    )
-    if exists:
-        raise HTTPException(
-            status_code=400,
-            detail="Classroom already exists"
-        )
-
-    # 2️⃣ Create system user for classroom
-    system_user_id = f"CLASSTEACHER_{classroom_id}"
-
-    system_user = User(
-        user_id=system_user_id,
-        classroom_id=classroom_id,
-        face_image_path=None,
-    )
-
-    db.add(system_user)
-    db.commit()
-    db.refresh(system_user)
-
-    return {
-        "message": "Classroom created successfully",
-        "classroom_id": classroom_id,
-    }
-
-
 @router.get("/{classroom_id}/users")
 def list_users_in_classroom(
     classroom_id: str,
     db: Session = Depends(get_db),
 ):
     """
-    List users in a classroom.
+    🌍 PUBLIC
+    List students in a classroom.
     """
-    users = get_users_in_classroom(db, classroom_id)
+    users = (
+        db.query(User)
+        .filter(
+            User.classroom_id == classroom_id,
+            User.role == UserRole.USER
+        )
+        .all()
+    )
 
     return {
         "classroom_id": classroom_id,
@@ -171,10 +104,9 @@ def get_today_attendance_for_classroom(
     db: Session = Depends(get_db),
 ):
     """
+    🌍 PUBLIC
     Fetch today's attendance for a classroom.
     """
-    from datetime import date
-
     today = date.today()
 
     records = (
@@ -199,30 +131,61 @@ def get_today_attendance_for_classroom(
         ],
     }
 
+
+# =====================================================
+# ------------------ ADMIN ENDPOINTS ------------------
+# =====================================================
+
+@router.post("/create")
+def create_classroom(
+    payload: ClassroomCreateRequest,
+    db: Session = Depends(get_db),
+    admin=Depends(get_current_admin),
+):
+    classroom_id = payload.classroom_id.strip()
+
+    if classroom_exists(db, classroom_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Classroom already exists"
+        )
+
+    # ✅ Create anchor admin user for classroom
+    system_user = User(
+        user_id=f"classteacher_{classroom_id}",
+        classroom_id=classroom_id,
+        role=UserRole.ADMIN,
+        is_active=True,
+        face_image_path=None,  # no face needed
+    )
+
+    db.add(system_user)
+    db.commit()
+    db.refresh(system_user)
+
+    return {
+        "message": "Classroom created successfully",
+        "classroom_id": classroom_id,
+    }
+
+    
 @router.delete("/{classroom_id}")
 def delete_classroom(
     classroom_id: str,
     db: Session = Depends(get_db),
+    admin=Depends(get_current_admin),
 ):
     """
-    Delete a classroom by removing all related users
+    🔒 ADMIN ONLY
+    Delete a classroom by removing all students
     and attendance records.
     """
-
-    # 1️⃣ Check if classroom exists
-    exists = (
-        db.query(User)
-        .filter(User.classroom_id == classroom_id)
-        .first()
-    )
-
-    if not exists:
+    if not classroom_exists(db, classroom_id):
         raise HTTPException(
             status_code=404,
             detail="Classroom not found"
         )
 
-    # 2️⃣ Delete attendance records
     attendance_records = (
         db.query(Attendance)
         .filter(Attendance.classroom_id == classroom_id)
@@ -232,16 +195,17 @@ def delete_classroom(
     for record in attendance_records:
         db.delete(record)
 
-    # 3️⃣ Delete users (including system user)
     users = (
         db.query(User)
-        .filter(User.classroom_id == classroom_id)
+        .filter(
+            User.classroom_id == classroom_id,
+        )
         .all()
     )
 
     for user in users:
-        db.delete(user)
         delete_face_image(user.face_image_path)
+        db.delete(user)
 
     db.commit()
 
@@ -251,4 +215,3 @@ def delete_classroom(
         "deleted_users": len(users),
         "deleted_attendance_records": len(attendance_records),
     }
-

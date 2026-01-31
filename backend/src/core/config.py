@@ -2,7 +2,10 @@
 
 from pydantic_settings import BaseSettings
 from pathlib import Path
-
+import os
+from datetime import timedelta
+from pydantic_settings import BaseSettings
+from typing import ClassVar
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 
@@ -32,6 +35,11 @@ class Settings(BaseSettings):
     CAMERA_INDEX: int = 0
     FRAME_WIDTH: int = 640
     FRAME_HEIGHT: int = 480
+    
+    SECRET_KEY: str = "dev-secret-change-this"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
+
 
     class Config:
         env_file = ".env"

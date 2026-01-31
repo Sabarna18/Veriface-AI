@@ -74,7 +74,7 @@ const UsersPage = () => {
       return;
 
     try {
-      await deleteMultipleUsers(classroomId, selectedUsers);
+      await deleteMultipleUsers(selectedUsers , classroomId);
       setSelectedUsers([]);
       toast.success("Selected users deleted");
       loadUsers();
