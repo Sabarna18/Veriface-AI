@@ -9,6 +9,15 @@ const Navbar = () => {
   const { classroomId, clearClassroom } = useClassroomContext();
   const { admin, isAdmin, logout } = useAuth();
 
+  const baseTheme =
+    "bg-gradient-to-r from-blue-600 to-indigo-700";
+
+  const adminTheme =
+    "bg-gradient-to-r from-slate-900 via-indigo-900 to-zinc-900";
+
+  const navbarTheme = isAdmin ? adminTheme : baseTheme;
+
+
   const handleExitClassroom = () => {
     clearClassroom();
     navigate("/classrooms");
@@ -20,11 +29,11 @@ const Navbar = () => {
 
   const handleAdminLogout = () => {
     logout();
-    navigate("/");
+    navigate("/classrooms");
   };
 
   return (
-    <header className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg">
+    <header className={`${navbarTheme} shadow-lg transition-colors duration-300`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
 
@@ -78,7 +87,7 @@ const Navbar = () => {
             {classroomId && (
               <button
                 onClick={handleExitClassroom}
-                className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-medium text-sm hover:bg-indigo-50 transition shadow-md"
+                className="bg-white cursor-pointer text-indigo-600 px-4 py-2 rounded-lg font-medium text-sm hover:bg-indigo-50 transition shadow-md"
               >
                 Exit Classroom
               </button>
@@ -87,14 +96,14 @@ const Navbar = () => {
             {!isAdmin ? (
               <button
                 onClick={handleAdminLogin}
-                className="bg-indigo-500/20 text-white px-4 py-2 rounded-lg text-sm font-medium border border-white/30 hover:bg-indigo-500/30 transition"
+                className="bg-indigo-500/20 cursor-pointer text-white px-4 py-2 rounded-lg text-sm font-medium border border-white/30 hover:bg-indigo-500/30 transition"
               >
                 Admin Login
               </button>
             ) : (
               <button
                 onClick={handleAdminLogout}
-                className="bg-red-500/20 text-red-100 px-4 py-2 rounded-lg text-sm font-medium border border-red-300/30 hover:bg-red-500/30 transition"
+                className="bg-red-500/20 cursor-pointer text-red-100 px-4 py-2 rounded-lg text-sm font-medium border border-red-300/30 hover:bg-red-500/30 transition"
               >
                 Logout
               </button>

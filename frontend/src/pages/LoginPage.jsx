@@ -61,7 +61,7 @@ const LoginPage = () => {
             <div className="w-full max-w-md">
                 {/* Back Button - Outside Card */}
                 <button
-                    onClick={() => navigate("/")}
+                    onClick={() => navigate("/classrooms")}
                     className="mb-6 flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors group"
                 >
                     <svg
@@ -77,7 +77,7 @@ const LoginPage = () => {
                             d="M10 19l-7-7m0 0l7-7m-7 7h18"
                         />
                     </svg>
-                    <span className="font-medium">Back to application</span>
+                    <span className="font-medium">Back to classroom list</span>
                 </button>
 
                 {/* Main Card */}

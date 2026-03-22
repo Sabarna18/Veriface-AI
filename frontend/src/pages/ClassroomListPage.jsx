@@ -19,6 +19,32 @@ import { useAuth } from "../auth/AuthContext";
  */
 const ClassroomListPage = () => {
 
+    const pageTheme = {
+        normal: {
+            pageBg: "bg-gradient-to-br from-indigo-50 via-white to-purple-50",
+            card: "bg-white border-gray-100",
+            heading: "text-gray-900",
+            subText: "text-gray-600",
+            adminBar: "bg-emerald-50 border-emerald-200 text-emerald-700",
+        },
+        admin: {
+            // VERY subtle darkening – still bright
+            pageBg: "bg-gradient-to-br from-slate-400 via-white to-indigo-500",
+
+            // Cards slightly tinted instead of dark
+            card: "bg-indigo-50/60 border-indigo-200",
+
+            // Text stays readable
+            heading: "text-gray-900",
+            subText: "text-gray-700",
+
+            // Admin bar feels “special” but not heavy
+            adminBar: "bg-indigo-100 border-indigo-300 text-indigo-800",
+        },
+    };
+
+
+
     const navigate = useNavigate();
     const { isAdmin, isAuthenticated, logout } = useAuth();
     const [classrooms, setClassrooms] = useState([]);
@@ -28,6 +54,11 @@ const ClassroomListPage = () => {
     const [creating, setCreating] = useState(false);
     const [deletingId, setDeletingId] = useState(null);
     const [error, setError] = useState(null);
+
+    const theme = isAuthenticated && isAdmin
+        ? pageTheme.admin
+        : pageTheme.normal;
+
 
     // ------------------ LOAD CLASSROOMS ------------------
 
@@ -126,12 +157,12 @@ const ClassroomListPage = () => {
 
     return (
 
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className={`min-h-screen ${theme.pageBg} py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300`}>
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-12">
-                    <h1 className="text-4xl font-bold text-gray-900 mb-3">Classrooms</h1>
-                    <p className="text-lg text-gray-600">Manage your classrooms and access attendance systems</p>
+                    <h1 className="text-4xl font-bold text-gray-700 mb-3">Classrooms</h1>
+                    <p className="text-lg text-gray-500">Manage your classrooms and access attendance systems</p>
                 </div>
 
                 {/* ================= ADMIN ACTION BAR ================= */}
@@ -139,7 +170,7 @@ const ClassroomListPage = () => {
                     {!isAuthenticated ? (
                         <button
                             onClick={() => navigate("/auth/login")}
-                            className="inline-flex items-center px-6 py-3 rounded-lg bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 transition"
+                            className="inline-flex items-center cursor-pointer px-6 py-3 rounded-lg bg-indigo-600 text-white font-semibold shadow-md hover:bg-indigo-700 transition"
                         >
                             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -149,14 +180,15 @@ const ClassroomListPage = () => {
                             Admin Login
                         </button>
                     ) : (
-                        <div className="flex items-center gap-4 bg-emerald-50 border border-emerald-200 px-6 py-3 rounded-lg">
+                        <div className="flex items-center gap-4 hover:transition-normal 
+                            cursor-pointer hover:bg-emerald-100 bg-emerald-50 border border-emerald-200 px-6 py-3 rounded-lg">
                             <span className="text-emerald-700 font-semibold text-sm tracking-wide">
                                 ADMIN MODE ACTIVE
                             </span>
 
                             <button
                                 onClick={logout}
-                                className="text-red-600 text-sm font-medium hover:underline"
+                                className="text-red-600 cursor-pointer text-sm font-medium hover:underline"
                             >
                                 Logout
                             </button>
@@ -211,7 +243,7 @@ const ClassroomListPage = () => {
                                     Creating...
                                 </span>
                             ) : (
-                                <span className="flex items-center justify-center">
+                                <span className="flex cursor-pointer items-center justify-center">
                                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                     </svg>

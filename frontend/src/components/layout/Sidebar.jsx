@@ -1,8 +1,34 @@
 import { NavLink } from "react-router-dom";
 import { useClassroomContext } from "../../context/ClassroomContext";
+import { useAuth } from "../../auth/AuthContext";
 
 const Sidebar = () => {
+
+  const sidebarTheme = {
+    normal: {
+      container: "bg-slate-50 border-r border-slate-200",
+      item: "text-slate-700 hover:bg-slate-200/60",
+      active: "bg-indigo-100 text-indigo-700 font-semibold",
+    },
+    admin: {
+      // Slightly lighter background for readability
+      container: "bg-gradient-to-br from-slate-300 via-white to-indigo-500 border-r border-slate-700",
+
+      // Brighter text + softer hover
+      item: "text-slate-200 hover:bg-slate-700/70",
+
+      // Higher contrast active state
+      active:
+        "bg-indigo-500/20 text-indigo-200 font-semibold ring-1 ring-indigo-400/30",
+    },
+  };
+
+
   const { classroomId } = useClassroomContext();
+  const { admin, isAdmin, logout } = useAuth();
+
+  const theme = isAdmin ? sidebarTheme.admin : sidebarTheme.normal;
+
 
   if (!classroomId) return null;
 
@@ -15,7 +41,7 @@ const Sidebar = () => {
     }`;
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 shadow-sm">
+    <aside className={`w-64 ${theme.container} transition-colors duration-300`}>
       <nav className="flex flex-col gap-2 p-4">
         <div className="mb-2">
           <h3 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
