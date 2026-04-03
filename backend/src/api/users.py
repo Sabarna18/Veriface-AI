@@ -3,22 +3,55 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 import os
-
+from pathlib import Path
 from core.dependencies import get_current_admin
 from db.database import get_db
 from db.models import User, UserRole
+from core.config import settings , BASE_DIR
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
 # ------------------ UTILS ------------------
 
+from pathlib import Path
+import os
+from core.config import settings
+
+
 def delete_face_image(path: str):
-    if path and os.path.exists(path):
-        try:
-            os.remove(path)
-        except Exception as e:
-            print(f"[WARN] Failed to delete image {path}: {e}")
+    if not path:
+        return
+
+    try:
+        # ✅ Ensure string
+        raw_path = str(path)
+
+        # ✅ Normalize Windows → Linux
+        normalized_path = raw_path.replace("\\", "/")
+
+        # ✅ Try original path first
+        file_path = Path(normalized_path)
+
+        if file_path.exists():
+            file_path.unlink()
+            print(f"[INFO] Deleted image: {file_path}")
+            return
+
+        # 🔥 Fallback (VERY IMPORTANT)
+        filename = os.path.basename(normalized_path)
+
+        fallback_path = settings.RAW_FACES_DIR / filename
+
+        if fallback_path.exists():
+            fallback_path.unlink()
+            print(f"[INFO] Deleted image (fallback): {fallback_path}")
+            return
+
+        print(f"[WARN] Image not found for deletion: {path}")
+
+    except Exception as e:
+        print(f"[ERROR] Failed to delete image {path}: {e}")
 
 
 def serialize_user(user: User):
@@ -99,15 +132,38 @@ def get_user_face_image(
     if not user or not user.face_image_path:
         raise HTTPException(404, "Image not found")
 
-    if not os.path.exists(user.face_image_path):
-        raise HTTPException(404, "Image file missing")
+    raw_path = str(user.face_image_path)
 
-    return FileResponse(
-        user.face_image_path,
-        media_type="image/jpeg",
-        filename=os.path.basename(user.face_image_path),
+    # ✅ Fix Windows slashes
+    normalized_path = raw_path.replace("\\", "/")
+
+    # ✅ Extract filename
+    filename = os.path.basename(normalized_path)
+
+    if not filename:
+        raise HTTPException(500, "Invalid filename extracted")
+
+    # ✅ Correct absolute path
+    correct_path = (
+        BASE_DIR
+        / "backend"
+        / "data"
+        / "raw"
+        / "registrations"
+        / filename
     )
 
+    if not correct_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Image file missing on server: {correct_path}"
+        )
+
+    return FileResponse(
+        path=str(correct_path),
+        media_type="image/jpeg",
+        filename=correct_path.name,
+    )
 
 # ------------------ ADMIN DELETE ENDPOINTS ------------------
 
@@ -183,7 +239,7 @@ def delete_user(
     user_id: str,
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
-    admin = Depends(get_current_admin)
+    admin=Depends(get_current_admin)
 ):
     user = (
         db.query(User)
@@ -198,12 +254,15 @@ def delete_user(
     if not user:
         raise HTTPException(404, "User not found")
 
+    # ✅ Delete image FIRST
     delete_face_image(user.face_image_path)
+
+    # ✅ Then delete DB record
     db.delete(user)
     db.commit()
 
     return {
-        "message": "User deleted successfully",
+        "message": "User and face image deleted successfully",
         "user_id": user_id,
     }
 

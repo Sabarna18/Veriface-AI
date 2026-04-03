@@ -63,7 +63,8 @@ def recognize_user(
         # NEVER expose raw DeepFace errors to frontend
         raise HTTPException(
             status_code=400,
-            detail="Face verification failed. Please ensure your face is clearly visible."
+            # detail="Face verification failed. Please ensure your face is clearly visible."
+            detail=str(e)
         )
 
     finally:

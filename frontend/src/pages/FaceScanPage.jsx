@@ -150,13 +150,13 @@ const FaceScanPage = () => {
             {/* Status Display */}
             {result && (
               <div className={`bg-white rounded-3xl shadow-xl p-8 border-2 ${result.status === "SUCCESS"
-                  ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50"
-                  : "border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50"
+                ? "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50"
+                : "border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50"
                 } animate-in fade-in slide-in-from-right-5 duration-500`}>
                 <div className="text-center">
                   <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 ${result.status === "SUCCESS"
-                      ? "bg-green-100"
-                      : "bg-orange-100"
+                    ? "bg-green-100"
+                    : "bg-orange-100"
                     }`}>
                     {result.status === "SUCCESS" ? (
                       <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,8 +180,8 @@ const FaceScanPage = () => {
                   </p>
 
                   <div className={`inline-block px-6 py-3 rounded-xl ${result.status === "SUCCESS"
-                      ? "bg-green-100 border-2 border-green-300"
-                      : "bg-orange-100 border-2 border-orange-300"
+                    ? "bg-green-100 border-2 border-green-300"
+                    : "bg-orange-100 border-2 border-orange-300"
                     }`}>
                     <div className="flex items-center space-x-2">
                       <svg className={`w-5 h-5 ${result.status === "SUCCESS" ? "text-green-700" : "text-orange-700"

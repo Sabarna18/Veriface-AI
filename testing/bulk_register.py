@@ -3,10 +3,40 @@ import sys
 import os
 import requests
 
-DUMMY_IMAGE = "dummy_face.jpg"  # one reusable image
+DUMMY_IMAGE = "dummy_face.jpg"
 
 
-def bulk_register(json_file, port):
+# ---------------------------------------------------
+# 🔐 LOGIN FUNCTION (GET TOKEN)
+# ---------------------------------------------------
+def get_admin_token(port, username, password):
+    login_url = f"http://localhost:{port}/auth/login"
+
+    data = {
+        "username": username,
+        "password": password
+    }
+
+    try:
+        response = requests.post(login_url, data=data)
+
+        if response.status_code != 200:
+            print("❌ Admin login failed:", response.text)
+            sys.exit(1)
+
+        token = response.json()["access_token"]
+        print("✅ Admin authenticated\n")
+        return token
+
+    except Exception as e:
+        print("🔥 Login error:", e)
+        sys.exit(1)
+
+
+# ---------------------------------------------------
+# 📦 BULK REGISTER
+# ---------------------------------------------------
+def bulk_register(json_file, port, token):
     if not os.path.exists(DUMMY_IMAGE):
         print(f"❌ Dummy image not found: {DUMMY_IMAGE}")
         sys.exit(1)
@@ -17,7 +47,11 @@ def bulk_register(json_file, port):
     classroom_id = data["classroom_id"]
     users = data["users"]
 
-    api_url = f"http://localhost:{port}/register"
+    api_url = f"http://localhost:{port}/register/"
+
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
 
     print(f"\n📌 Classroom: {classroom_id}")
     print(f"🌐 API: {api_url}")
@@ -28,27 +62,32 @@ def bulk_register(json_file, port):
     for user in users:
         user_id = user["user_id"]
 
-        files = {
-            "image": open(DUMMY_IMAGE, "rb")
-        }
-
-        payload = {
-            "user_id": user_id,
-            "classroom_id": classroom_id
-        }
-
         try:
-            response = requests.post(
-                api_url,
-                data=payload,
-                files=files
-            )
+            with open(DUMMY_IMAGE, "rb") as img:
+                files = {
+                    "image": img
+                }
+
+                payload = {
+                    "user_id": user_id,
+                    "classroom_id": classroom_id
+                }
+
+                response = requests.post(
+                    api_url,
+                    data=payload,
+                    files=files,
+                    headers=headers
+                )
 
             if response.status_code == 200:
                 print(f"✅ Registered: {user_id}")
                 success += 1
             else:
-                detail = response.json().get("detail", "Unknown error")
+                try:
+                    detail = response.json().get("detail", response.text)
+                except:
+                    detail = response.text
                 print(f"❌ Failed: {user_id} → {detail}")
                 failed += 1
 
@@ -62,8 +101,20 @@ def bulk_register(json_file, port):
     print("======================\n")
 
 
+# ---------------------------------------------------
+# 🚀 ENTRY POINT
+# ---------------------------------------------------
 if __name__ == "__main__":
-    
-    port = input("enter running port:")
-    json_path = input("Enter users json file path: ")
-    bulk_register(json_file=json_path , port=port)
+    port = input("Enter backend port (e.g. 8002): ")
+    json_path = input("Enter users JSON file path: ")
+
+    admin_user = input("Enter admin user_id: ")
+    admin_pass = input("Enter admin password: ")
+
+    token = get_admin_token(port, admin_user, admin_pass)
+
+    bulk_register(
+        json_file=json_path,
+        port=port,
+        token=token
+    )

@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Boolean,
     Enum,
+    LargeBinary
 )
 from sqlalchemy.sql import func
 from .database import Base
@@ -61,6 +62,8 @@ class User(Base):
         String,
         nullable=True
     )
+
+    # face_embedding = Column(LargeBinary, nullable=True)
 
     is_active = Column(
         Boolean,

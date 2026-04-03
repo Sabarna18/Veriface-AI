@@ -89,7 +89,7 @@ export const adminApi = {
         const formData = new FormData();
         formData.append("user_id", userId);
         formData.append("classroom_id", classroomId);
-        formData.append("file", imageFile); // MUST match backend name
+        formData.append("image", imageFile); // MUST match backend name
 
         return httpAdmin("/register/", {
             method: "POST",
