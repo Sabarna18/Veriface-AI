@@ -44,6 +44,76 @@ def get_image_path(user_id: str, ext: str) -> Path:
 # ROUTES
 # ---------------------------------------------------
 
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    UploadFile,
+    File,
+    Form,
+    status,
+)
+
+from sqlalchemy.orm import Session
+from pathlib import Path
+from datetime import datetime
+import shutil
+import pytz
+
+from db.database import get_db
+from db.models import User, UserRole
+
+from core.config import settings
+from core.dependencies import get_current_admin
+
+from core.embedding_manager import generate_embedding
+
+
+router = APIRouter(
+    prefix="/register",
+    tags=["Registration"]
+)
+
+# ---------------------------------------------------
+# CONFIG
+# ---------------------------------------------------
+
+FACE_DIR: Path = settings.RAW_FACES_DIR
+FACE_DIR.mkdir(parents=True, exist_ok=True)
+
+ALLOWED_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png"
+}
+
+IST = pytz.timezone("Asia/Kolkata")
+
+
+# ---------------------------------------------------
+# UTIL FUNCTIONS
+# ---------------------------------------------------
+
+def validate_image_extension(filename: str) -> str:
+    ext = Path(filename).suffix.lower()
+
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid image format. Only JPG, JPEG, PNG allowed.",
+        )
+
+    return ext
+
+
+def get_image_path(user_id: str, ext: str) -> Path:
+    return FACE_DIR / f"{user_id}{ext}"
+
+
+# ---------------------------------------------------
+# ROUTES
+# ---------------------------------------------------
+
 @router.post("/")
 def register_user(
     user_id: str = Form(...),
@@ -52,46 +122,105 @@ def register_user(
     db: Session = Depends(get_db),
     admin=Depends(get_current_admin),
 ):
-    # -------------------- CHECK EXISTING USER --------------------
-    existing_user = db.query(User).filter(User.user_id == user_id).first()
+
+    # ---------------------------------------------------
+    # CHECK EXISTING USER
+    # ---------------------------------------------------
+
+    existing_user = (
+        db.query(User)
+        .filter(User.user_id == user_id)
+        .first()
+    )
+
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already registered",
         )
 
-    # -------------------- VALIDATE FILE --------------------
+    # ---------------------------------------------------
+    # VALIDATE IMAGE
+    # ---------------------------------------------------
+
     ext = validate_image_extension(image.filename)
 
     image_path: Path = get_image_path(user_id, ext)
 
-    # -------------------- SAVE FILE --------------------
+    # ---------------------------------------------------
+    # SAVE IMAGE
+    # ---------------------------------------------------
+
     try:
         image.file.seek(0)
 
         with open(image_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)  # ✅ FIXED
+            shutil.copyfileobj(image.file, buffer)
 
     except Exception as e:
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save image file: {str(e)}",
+            detail=f"Failed to save image: {str(e)}",
         )
 
-    # -------------------- SAVE USER --------------------
+    # ---------------------------------------------------
+    # GENERATE EMBEDDING
+    # ---------------------------------------------------
+
     try:
+        embedding_data = generate_embedding(
+            str(image_path.resolve())
+        )
+
+        if embedding_data is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No face embedding generated",
+            )
+
+    except Exception as e:
+
+        # cleanup image
+        if image_path.exists():
+            image_path.unlink()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Embedding generation failed: {str(e)}",
+        )
+
+    # ---------------------------------------------------
+    # SAVE USER
+    # ---------------------------------------------------
+
+    try:
+
         user = User(
             user_id=user_id,
             classroom_id=classroom_id,
-            face_image_path=str(image_path.resolve()),  # ✅ ABSOLUTE PATH
+
             role=UserRole.USER,
+
+            face_image_path=str(
+                image_path.resolve()
+            ),
+
+            embedding_version=settings.EMBEDDING_VERSION,
+
+            embedding_model=settings.MODEL_NAME,
+
+            embedding_created_at=datetime.now(IST),
         )
 
         db.add(user)
+
         db.commit()
+
         db.refresh(user)
 
     except Exception:
+
         db.rollback()
 
         # cleanup file
@@ -103,11 +232,21 @@ def register_user(
             detail="Failed to register user",
         )
 
-    # -------------------- RESPONSE --------------------
+    # ---------------------------------------------------
+    # RESPONSE
+    # ---------------------------------------------------
+
     return {
         "message": "User registered successfully",
+
         "user_id": user.user_id,
+
         "classroom_id": user.classroom_id,
+
+        "embedding_version": user.embedding_version,
+
+        "embedding_model": user.embedding_model,
+
         "created_at": user.created_at,
     }
 
@@ -116,7 +255,7 @@ def register_user(
 # GET ALL USERS
 # ---------------------------------------------------
 
-@router.get("/users")
+@router.get("/users/")
 def get_all_registered_users(
     db: Session = Depends(get_db),
     admin=Depends(get_current_admin),

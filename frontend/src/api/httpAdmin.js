@@ -2,50 +2,159 @@
 
 import { getToken, removeToken } from "../utils/auth";
 
-const API_BASE = "http://localhost:8002";
+const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+
+/**
+ * Normalizes an API endpoint URL.
+ *
+ * Guarantees:
+ * 1. Exactly one leading slash.
+ * 2. Exactly one trailing slash before query parameters.
+ * 3. Removes accidental duplicate slashes in the pathname.
+ * 4. Preserves query parameters.
+ *
+ * Examples:
+ *
+ * users
+ *      -> /users/
+ *
+ * /users
+ *      -> /users/
+ *
+ * //users//
+ *      -> /users/
+ *
+ * /users/123?classroom_id=1
+ *      -> /users/123/?classroom_id=1
+ *
+ * //attendance//today?classroom_id=1
+ *      -> /attendance/today/?classroom_id=1
+ */
+function normalizeApiUrl(url) {
+  const [rawPath, query] = url.split("?", 2);
+
+  // Remove accidental duplicate slashes.
+  let path = rawPath.replace(/\/+/g, "/");
+
+  // Guarantee exactly one leading slash.
+  path = `/${path.replace(/^\/+/, "")}`;
+
+  // Guarantee exactly one trailing slash.
+  path = `${path.replace(/\/+$/, "")}/`;
+
+  return query ? `${path}?${query}` : path;
+}
 
 export async function httpAdmin(
-    url,
-    { method = "GET", body, headers = {}, isFormData = false } = {}
+  url,
+  { method = "GET", body = null, headers = {}, isFormData = false } = {},
 ) {
-    const token = getToken();
+  // ---------------------------------------------------
+  // AUTH
+  // ---------------------------------------------------
 
-    if (!token) {
-        throw new Error("AUTH_REQUIRED");
+  const token = getToken();
+
+  if (!token) {
+    throw new Error("AUTH_REQUIRED");
+  }
+
+  // ---------------------------------------------------
+  // HEADERS
+  // ---------------------------------------------------
+
+  const finalHeaders = {
+    Authorization: `Bearer ${token}`,
+    ...headers,
+  };
+
+  /**
+   * Never manually set Content-Type for FormData.
+   * The browser generates the multipart boundary.
+   */
+  if (body !== null && !isFormData && method !== "GET" && method !== "HEAD") {
+    finalHeaders["Content-Type"] = "application/json";
+  }
+
+  // ---------------------------------------------------
+  // REQUEST BODY
+  // ---------------------------------------------------
+
+  let requestBody;
+
+  if (body !== null) {
+    if (isFormData) {
+      requestBody = body;
+    } else if (method !== "GET" && method !== "HEAD") {
+      requestBody = JSON.stringify(body);
     }
+  }
 
-    const finalHeaders = {
-        Authorization: `Bearer ${token}`,
-        ...headers,
-    };
+  // ---------------------------------------------------
+  // URL
+  // ---------------------------------------------------
 
-    // Only set JSON header when NOT FormData
-    if (body && !isFormData && method !== "DELETE") {
-        finalHeaders["Content-Type"] = "application/json";
+  const requestUrl = `${API_BASE}${normalizeApiUrl(url)}`;
+
+  // ---------------------------------------------------
+  // REQUEST
+  // ---------------------------------------------------
+
+  const response = await fetch(requestUrl, {
+    method,
+    headers: finalHeaders,
+    body: requestBody,
+  });
+
+  // ---------------------------------------------------
+  // AUTH FAILURE
+  // ---------------------------------------------------
+
+  if (response.status === 401 || response.status === 403) {
+    removeToken();
+
+    throw new Error("AUTH_REQUIRED");
+  }
+
+  // ---------------------------------------------------
+  // NO CONTENT
+  // ---------------------------------------------------
+
+  if (response.status === 204 || response.status === 205) {
+    return null;
+  }
+
+  // ---------------------------------------------------
+  // RESPONSE PARSING
+  // ---------------------------------------------------
+
+  const text = await response.text();
+
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error("Server returned an invalid response");
     }
+  }
 
-    const res = await fetch(`${API_BASE}${url}`, {
-        method,
-        headers: finalHeaders,
-        body: body
-            ? isFormData
-                ? body
-                : method === "DELETE"
-                    ? undefined
-                    : JSON.stringify(body)
-            : undefined,
-    });
+  // ---------------------------------------------------
+  // ERROR HANDLING
+  // ---------------------------------------------------
 
-    if (res.status === 401 || res.status === 403) {
-        removeToken();
-        throw new Error("AUTH_REQUIRED");
-    }
+  if (!response.ok) {
+    throw new Error(
+      data?.detail ??
+        data?.message ??
+        `Admin request failed (${response.status})`,
+    );
+  }
 
-    const data = await res.json().catch(() => null);
+  // ---------------------------------------------------
+  // SUCCESS
+  // ---------------------------------------------------
 
-    if (!res.ok) {
-        throw new Error(data?.detail || "Admin request failed");
-    }
-
-    return data;
+  return data;
 }

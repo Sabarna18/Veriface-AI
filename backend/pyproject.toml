@@ -34,6 +34,8 @@ dependencies = [
     "python-jose[cryptography]>=3.5.0",
     "pytest>=9.0.2",
     "httpx>=0.28.1",
+    "alembic>=1.18.4",
+    "psycopg[binary]>=3.3.4",
 ]
 
 # -------------------- OPTIONAL / DEV DEPENDENCIES --------------------

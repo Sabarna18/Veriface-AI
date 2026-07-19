@@ -1,18 +1,97 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    UploadFile,
+    File,
+    Form,
+    HTTPException,
+)
+
 from sqlalchemy.orm import Session
-import tempfile, shutil, os
-from deepface import DeepFace
+
+import tempfile
+import shutil
+import os
+import numpy as np
 
 from db.database import get_db
 from db.models import User
 
-router = APIRouter(prefix="/recognize", tags=["Recognition"])
+from core.config import settings
+from core.embedding_manager import generate_embedding
 
-THRESHOLD = 0.50
-MODEL = "ArcFace"
-METRIC = "cosine"
-DETECTOR = "opencv"
 
+router = APIRouter(
+    prefix="/recognize",
+    tags=["Recognition"]
+)
+
+# ---------------------------------------------------
+# CONFIG
+# ---------------------------------------------------
+
+THRESHOLD = settings.MATCH_THRESHOLD
+
+# ---------------------------------------------------
+# EMBEDDING CACHE
+# user_id -> embedding metadata
+# ---------------------------------------------------
+
+EMBEDDING_CACHE = {}
+
+
+# ---------------------------------------------------
+# COSINE DISTANCE
+# ---------------------------------------------------
+
+def cosine_distance(a, b):
+    a = np.array(a)
+    b = np.array(b)
+
+    return 1 - (
+        np.dot(a, b)
+        / (np.linalg.norm(a) * np.linalg.norm(b))
+    )
+
+
+# ---------------------------------------------------
+# GET STORED EMBEDDING
+# VERSION-AWARE + CACHED
+# ---------------------------------------------------
+
+def get_stored_embedding(user: User):
+
+    # ---------------- CACHE HIT ----------------
+
+    cached = EMBEDDING_CACHE.get(user.user_id)
+
+    if cached:
+
+        # version validation
+        if (
+            cached["embedding_version"]
+            == settings.EMBEDDING_VERSION
+        ):
+            return cached
+
+    # ---------------- REGENERATE ----------------
+
+    embedding_data = generate_embedding(
+        user.face_image_path
+    )
+
+    if embedding_data is None:
+        return None
+
+    # cache it
+    EMBEDDING_CACHE[user.user_id] = embedding_data
+
+    return embedding_data
+
+
+# ---------------------------------------------------
+# ROUTE
+# ---------------------------------------------------
 
 @router.post("/")
 def recognize_user(
@@ -20,53 +99,150 @@ def recognize_user(
     image: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).filter(User.user_id == user_id).first()
-    if not user or not user.face_image_path:
-        raise HTTPException(status_code=404, detail="User not registered")
 
-    # ---- Save temp image safely ----
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+    # ---------------------------------------------------
+    # FETCH USER
+    # ---------------------------------------------------
+
+    user = (
+        db.query(User)
+        .filter(User.user_id == user_id)
+        .first()
+    )
+
+    if not user or not user.face_image_path:
+
+        raise HTTPException(
+            status_code=404,
+            detail="User not registered",
+        )
+
+    # ---------------------------------------------------
+    # EMBEDDING VERSION VALIDATION
+    # ---------------------------------------------------
+
+    if (
+        user.embedding_version
+        != settings.EMBEDDING_VERSION
+    ):
+
+        return {
+            "verified": False,
+
+            "reason": "OUTDATED_EMBEDDING",
+
+            "required_version":
+                settings.EMBEDDING_VERSION,
+
+            "current_version":
+                user.embedding_version,
+        }
+
+    # ---------------------------------------------------
+    # SAVE TEMP IMAGE
+    # ---------------------------------------------------
+
+    with tempfile.NamedTemporaryFile(
+        delete=False,
+        suffix=".jpg"
+    ) as tmp:
+
         shutil.copyfileobj(image.file, tmp)
+
         tmp.flush()
+
         os.fsync(tmp.fileno())
+
         input_path = tmp.name
 
     try:
-        # ---- Verify ----
-        result = DeepFace.verify(
-            img1_path=input_path,
-            img2_path=user.face_image_path,
-            model_name=MODEL,
-            detector_backend=DETECTOR,
-            distance_metric=METRIC,
-            enforce_detection=False,  # 🔥 critical
+
+        # ---------------------------------------------------
+        # GENERATE INPUT EMBEDDING
+        # ---------------------------------------------------
+
+        input_embedding_data = generate_embedding(
+            input_path
         )
 
-        distance = result.get("distance")
+        if input_embedding_data is None:
 
-        if distance is None:
             return {
-                "matched": False,
-                "reason": "No face detected in input image",
+                "verified": False,
+                "reason": "NO_FACE_DETECTED",
             }
 
-        matched = distance <= THRESHOLD
+        input_embedding = (
+            input_embedding_data["embedding"]
+        )
+
+        # ---------------------------------------------------
+        # LOAD STORED EMBEDDING
+        # ---------------------------------------------------
+
+        stored_embedding_data = (
+            get_stored_embedding(user)
+        )
+
+        if stored_embedding_data is None:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Stored face invalid",
+            )
+
+        stored_embedding = (
+            stored_embedding_data["embedding"]
+        )
+
+        # ---------------------------------------------------
+        # COMPARE
+        # ---------------------------------------------------
+
+        distance = cosine_distance(
+            input_embedding,
+            stored_embedding
+        )
+
+        verified = bool(
+            distance <= THRESHOLD
+        )
+
+        # ---------------------------------------------------
+        # RESPONSE
+        # ---------------------------------------------------
 
         return {
-            "verified": matched,
+
+            "verified": verified,
+
             "user_id": user.user_id,
-            "distance": distance,
+
+            "distance": float(distance),
+
             "threshold": THRESHOLD,
+
+            "embedding_version":
+                settings.EMBEDDING_VERSION,
+
+            "model":
+                settings.MODEL_NAME,
         }
 
+    except HTTPException:
+        raise
+
     except Exception as e:
-        # NEVER expose raw DeepFace errors to frontend
+
         raise HTTPException(
             status_code=400,
-            # detail="Face verification failed. Please ensure your face is clearly visible."
-            detail=str(e)
+            detail=(
+                "Face verification failed. "
+                f"Internal error: {str(e)}"
+            ),
         )
 
     finally:
+
         if os.path.exists(input_path):
             os.remove(input_path)

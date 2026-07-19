@@ -64,7 +64,7 @@ def list_classrooms(db: Session = Depends(get_db)):
     }
 
 
-@router.get("/{classroom_id}/users")
+@router.get("/{classroom_id}/users/")
 def list_users_in_classroom(
     classroom_id: str,
     db: Session = Depends(get_db),
@@ -98,7 +98,7 @@ def list_users_in_classroom(
     }
 
 
-@router.get("/{classroom_id}/attendance/today")
+@router.get("/{classroom_id}/attendance/today/")
 def get_today_attendance_for_classroom(
     classroom_id: str,
     db: Session = Depends(get_db),
@@ -136,7 +136,7 @@ def get_today_attendance_for_classroom(
 # ------------------ ADMIN ENDPOINTS ------------------
 # =====================================================
 
-@router.post("/create")
+@router.post("/create/")
 def create_classroom(
     payload: ClassroomCreateRequest,
     db: Session = Depends(get_db),
@@ -169,7 +169,7 @@ def create_classroom(
     }
 
     
-@router.delete("/{classroom_id}")
+@router.delete("/{classroom_id}/")
 def delete_classroom(
     classroom_id: str,
     db: Session = Depends(get_db),

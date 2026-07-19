@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     """
     # Create DB tables if DB is used
     try:
-        Base.metadata.create_all(bind=engine)
+
         print("✅ Database initialized")
     except Exception as e:
         print(f"⚠️ Database initialization skipped: {e}")
@@ -48,14 +48,17 @@ app = FastAPI(
     title=settings.APP_NAME,
     debug=settings.DEBUG,
     lifespan=lifespan,
+    root_path=settings.API_ROOT_PATH,
 )
 
 
 # -------------------- CORS --------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174" ,
-                    "http://localhost:5175" , "http://localhost:5176"],  # change to frontend URL in production
+    allow_origins=[
+        origin.strip()
+        for origin in settings.CORS_ORIGINS.split(",")
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

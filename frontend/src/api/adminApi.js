@@ -1,105 +1,149 @@
 // src/api/adminApi.js
 import { httpAdmin } from "./httpAdmin";
 
+const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+
 export const adminApi = {
-    /* ===============================
+  /* ===============================
+       AUTHENTICATION
+       =============================== */
+
+  login: async (username, password) => {
+    const formData = new URLSearchParams();
+
+    formData.set("username", username);
+    formData.set("password", password);
+
+    const response = await fetch(`${API_BASE}/auth/login/`, {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+
+      body: formData,
+    });
+
+    const text = await response.text();
+
+    let data = null;
+
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Server returned an invalid response");
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        data?.detail ?? data?.message ?? `Login failed (${response.status})`,
+      );
+    }
+
+    return data;
+  },
+
+  /* ===============================
        ATTENDANCE (ADMIN)
        =============================== */
 
-    // DELETE /attendance/today/{user_id}
-    deleteTodayAttendanceForUser: (userId, classroomId) => {
-        return httpAdmin(
-            `/attendance/today/${userId}?classroom_id=${classroomId}`,
-            { method: "DELETE" }
-        );
-    },
+  // DELETE /attendance/today/{user_id}
+  deleteTodayAttendanceForUser: (userId, classroomId) => {
+    return httpAdmin(
+      `/attendance/today/${userId}?classroom_id=${classroomId}`,
+      { method: "DELETE" },
+    );
+  },
 
-    // DELETE /attendance/today
-    deleteAllTodayAttendance: (classroomId) => {
-        return httpAdmin(
-            `/attendance/today?classroom_id=${classroomId}`,
-            { method: "DELETE" }
-        );
-    },
+  // DELETE /attendance/today
+  deleteAllTodayAttendance: (classroomId) => {
+    return httpAdmin(`/attendance/today?classroom_id=${classroomId}`, {
+      method: "DELETE",
+    });
+  },
 
-    // DELETE /attendance/user/{user_id}
-    deleteAllAttendanceForUser: (userId, classroomId) => {
-        return httpAdmin(
-            `/attendance/user/${userId}?classroom_id=${classroomId}`,
-            { method: "DELETE" }
-        );
-    },
+  // DELETE /attendance/user/{user_id}
+  deleteAllAttendanceForUser: (userId, classroomId) => {
+    return httpAdmin(`/attendance/user/${userId}?classroom_id=${classroomId}`, {
+      method: "DELETE",
+    });
+  },
 
-    /* ===============================
+  /* ===============================
      CLASSROOMS (ADMIN)
      =============================== */
 
-    // POST /classrooms/create
-    createClassroom: (classroomId) => {
-        return httpAdmin("/classrooms/create", {
-            method: "POST",
-            body: ({ classroom_id: classroomId }),
-        });
-    },
+  // POST /classrooms/create
+  createClassroom: (classroomId) => {
+    return httpAdmin("/classrooms/create", {
+      method: "POST",
+      body: { classroom_id: classroomId },
+    });
+  },
 
-    // DELETE /classrooms/{classroom_id}
-    deleteClassroom: (classroomId) => {
-        return httpAdmin(`/classrooms/${classroomId}`, {
-            method: "DELETE",
-        });
-    },
+  // DELETE /classrooms/{classroom_id}
+  deleteClassroom: (classroomId) => {
+    return httpAdmin(`/classrooms/${classroomId}`, {
+      method: "DELETE",
+    });
+  },
 
-    /* ===============================
+  /* ===============================
      USERS (ADMIN)
      =============================== */
 
-    // DELETE /users/delete-all
-    deleteAllUsers: (classroomId) => {
-        return httpAdmin(
-            `/users/admin/delete-all?classroom_id=${classroomId}`,
-            { method: "DELETE" }
-        );
-    },
+  // DELETE /users/delete-all
+  deleteAllUsers: (classroomId) => {
+    return httpAdmin(`/users/admin/delete-all?classroom_id=${classroomId}`, {
+      method: "DELETE",
+    });
+  },
 
-    // POST /users/delete-multiple
-    deleteMultipleUsers: (userIds, classroomId) => {
-        return httpAdmin(
-            `/users/admin/delete-multiple?classroom_id=${classroomId}`,
-            {
-                method: "POST",
-                body: ({"user_ids":userIds}),
-            }
-        );
-    },
+  // POST /users/delete-multiple
+  deleteMultipleUsers: (userIds, classroomId) => {
+    return httpAdmin(
+      `/users/admin/delete-multiple?classroom_id=${classroomId}`,
+      {
+        method: "POST",
+        body: { user_ids: userIds },
+      },
+    );
+  },
 
-    // DELETE /users/{user_id}
-    deleteUser: (userId, classroomId) => {
-        return httpAdmin(
-            `/users/admin/${userId}?classroom_id=${classroomId}`,
-            { method: "DELETE" }
-        );
-    },
+  // DELETE /users/{user_id}
+  deleteUser: (userId, classroomId) => {
+    return httpAdmin(`/users/admin/${userId}?classroom_id=${classroomId}`, {
+      method: "DELETE",
+    });
+  },
 
-    /* ===============================
+  /* ===============================
     REGISTRATION (ADMIN)
     =============================== */
 
-    // POST /register/
-    registerUser: (userId, classroomId, imageFile) => {
-        const formData = new FormData();
-        formData.append("user_id", userId);
-        formData.append("classroom_id", classroomId);
-        formData.append("image", imageFile); // MUST match backend name
+  // POST /register/
+  registerUser: async (userId, classroomId, imageFile) => {
+    const formData = new FormData();
 
-        return httpAdmin("/register/", {
-            method: "POST",
-            body: formData,
-            isFormData: true, // 🔥 THIS FIXES 422
-        });
-    },
+    formData.append("user_id", userId);
 
-    // GET /register/users
-    getAllRegisteredUsers: () => {
-        return httpAdmin("/register/users");
-    },
+    formData.append("classroom_id", classroomId);
+
+    formData.append("image", imageFile);
+
+    return httpAdmin("/register/", {
+      method: "POST",
+
+      body: formData,
+
+      isFormData: true,
+    });
+  },
+
+  // GET /register/users
+  getAllRegisteredUsers: () => {
+    return httpAdmin("/register/users");
+  },
 };

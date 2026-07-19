@@ -12,7 +12,7 @@ class FaceRecognizer:
             model_name=settings.MODEL_NAME,
             detector_backend=settings.DETECTOR_BACKEND,
             distance_metric=settings.DISTANCE_METRIC,
-            enforce_detection=False
+            enforce_detection=True
         )
         return result
 

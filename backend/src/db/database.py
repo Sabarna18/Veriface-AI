@@ -9,10 +9,10 @@ from core.config import settings
 # SQLite  -> sqlite:///./attendance.db
 # Postgres-> postgresql://user:password@localhost/dbname
 
-DATABASE_URL = (
-    settings.__dict__.get("DATABASE_URL")
-    if hasattr(settings, "DATABASE_URL")
-    else "sqlite:///./attendance.db"
+DATABASE_URL = getattr(
+    settings,
+    "DATABASE_URL",
+    "sqlite:///./attendance.db"
 )
 
 # -------------------- ENGINE --------------------

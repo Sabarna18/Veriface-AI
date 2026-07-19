@@ -1,54 +1,112 @@
-# backend/src/core/config.py
-
-from pydantic_settings import BaseSettings
 from pathlib import Path
-import os
-from datetime import timedelta
-from pydantic_settings import BaseSettings
-from typing import ClassVar
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[3]
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    # -------------------- APP --------------------
-    APP_NAME: str = "Face Attendance System"
-    DEBUG: bool = True
+    # ==========================================================
+    # Application
+    # ==========================================================
 
-    # -------------------- PATHS --------------------
-    DATA_DIR: Path = BASE_DIR / "backend" / "data"
-    RAW_FACES_DIR: Path = DATA_DIR / "raw" / "registrations"
-    ALIGNED_FACES_DIR: Path = DATA_DIR / "processed" / "aligned_faces"
-    EMBEDDINGS_DIR: Path = DATA_DIR / "embeddings"
-    ATTENDANCE_DIR: Path = DATA_DIR / "attendance"
+    APP_NAME: str = "VeriFace AI"
+    DEBUG: bool = False
+    API_ROOT_PATH: str = "/api"
 
-    EMBEDDINGS_FILE: Path = EMBEDDINGS_DIR / "face_embeddings.pkl"
-    ATTENDANCE_FILE: Path = ATTENDANCE_DIR / "attendance_log.csv"
+    # ==========================================================
+    # CORS
+    # ==========================================================
 
-    # -------------------- FACE RECOGNITION --------------------
+    CORS_ORIGINS: str = "http://localhost"
+
+    # ==========================================================
+    # Database
+    # ==========================================================
+
+    DATABASE_URL: str = "sqlite:///./attendance.db"
+
+    # ==========================================================
+    # Application Storage
+    # ==========================================================
+
+    DATA_DIR: Path = BASE_DIR / "data"
+
+    @property
+    def RAW_FACES_DIR(self) -> Path:
+        return self.DATA_DIR / "raw" / "registrations"
+
+    @property
+    def ALIGNED_FACES_DIR(self) -> Path:
+        return self.DATA_DIR / "processed" / "aligned_faces"
+
+    @property
+    def EMBEDDINGS_DIR(self) -> Path:
+        return self.DATA_DIR / "embeddings"
+
+    @property
+    def ATTENDANCE_DIR(self) -> Path:
+        return self.DATA_DIR / "attendance"
+
+    @property
+    def EMBEDDINGS_FILE(self) -> Path:
+        return self.EMBEDDINGS_DIR / "face_embeddings.pkl"
+
+    @property
+    def ATTENDANCE_FILE(self) -> Path:
+        return self.ATTENDANCE_DIR / "attendance_log.csv"
+
+    # ==========================================================
+    # Face Recognition
+    # ==========================================================
+
     MODEL_NAME: str = "ArcFace"
     DETECTOR_BACKEND: str = "opencv"
     DISTANCE_METRIC: str = "cosine"
-    MATCH_THRESHOLD: float = 0.68
+    MATCH_THRESHOLD: float = 0.50
+    EMBEDDING_VERSION: str = "arcface_v1"
 
-    # -------------------- CAMERA --------------------
+    # ==========================================================
+    # Camera
+    # ==========================================================
+
     CAMERA_INDEX: int = 0
     FRAME_WIDTH: int = 640
     FRAME_HEIGHT: int = 480
-    
+
+    # ==========================================================
+    # Authentication
+    # ==========================================================
+
     SECRET_KEY: str = "dev-secret-change-this"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
+    # ==========================================================
+    # Pydantic Settings
+    # ==========================================================
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
 settings = Settings()
 
-# Ensure directories exist
-settings.RAW_FACES_DIR.mkdir(parents=True, exist_ok=True)
-settings.ALIGNED_FACES_DIR.mkdir(parents=True, exist_ok=True)
-settings.EMBEDDINGS_DIR.mkdir(parents=True, exist_ok=True)
-settings.ATTENDANCE_DIR.mkdir(parents=True, exist_ok=True)
+
+def initialize_directories() -> None:
+    directories = (
+        settings.RAW_FACES_DIR,
+        settings.ALIGNED_FACES_DIR,
+        settings.EMBEDDINGS_DIR,
+        settings.ATTENDANCE_DIR,
+    )
+
+    for directory in directories:
+        directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )

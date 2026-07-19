@@ -63,7 +63,12 @@ class User(Base):
         nullable=True
     )
 
-    # face_embedding = Column(LargeBinary, nullable=True)
+    embedding_version = Column(
+        String,
+        nullable=True
+    )
+    embedding_model = Column(String, nullable=True)
+    embedding_created_at = Column(DateTime, nullable=True)
 
     is_active = Column(
         Boolean,

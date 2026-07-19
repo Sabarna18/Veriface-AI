@@ -12,7 +12,7 @@ from jose import JWTError, jwt
 from core.config import settings
 from db.models import UserRole
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login/")
 
 router = APIRouter(
     prefix="/auth",
@@ -51,7 +51,7 @@ def get_current_admin(
 
 
 @router.get(
-    "/me",
+    "/me/",
     status_code=status.HTTP_200_OK,
 )
 def get_admin_me(
@@ -135,7 +135,7 @@ def get_admin_me(
 
 
 @router.post(
-    "/login",
+    "/login/",
     response_model=AdminLoginResponse,
     status_code=status.HTTP_200_OK
 )

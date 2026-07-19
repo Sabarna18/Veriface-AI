@@ -11,7 +11,7 @@ IST = pytz.timezone("Asia/Kolkata")
 
 # ------------------ MARK ATTENDANCE (STUDENT) ------------------
 
-@router.post("/mark/{user_id}")
+@router.post("/mark/{user_id}/")
 def mark_attendance(
     user_id: str,
     classroom_id: str = Query(...),
@@ -71,7 +71,7 @@ def mark_attendance(
 
 # ------------------ READ ATTENDANCE (PUBLIC) ------------------
 
-@router.get("/today")
+@router.get("/today/")
 def get_today_attendance(
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
@@ -104,7 +104,7 @@ def get_today_attendance(
     }
 
 
-@router.get("/by-date")
+@router.get("/by-date/")
 def get_attendance_by_date(
     classroom_id: str = Query(...),
     attendance_date: date = Query(...),
@@ -136,7 +136,7 @@ def get_attendance_by_date(
     }
 
 
-@router.get("/all")
+@router.get("/all/")
 def get_all_attendance_for_classroom(
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
@@ -167,7 +167,7 @@ def get_all_attendance_for_classroom(
     }
 
 
-@router.get("/status/{user_id}")
+@router.get("/status/{user_id}/")
 def get_day_wise_attendance_status(
     user_id: str,
     classroom_id: str = Query(...),
@@ -225,7 +225,7 @@ def get_day_wise_attendance_status(
 
 # ------------------ ADMIN DELETE ENDPOINTS ------------------
 
-@router.delete("/admin/today/{user_id}")
+@router.delete("/admin/today/{user_id}/")
 def delete_today_attendance_for_user(
     user_id: str,
     classroom_id: str = Query(...),
@@ -257,7 +257,7 @@ def delete_today_attendance_for_user(
     }
 
 
-@router.delete("/admin/today")
+@router.delete("/admin/today/")
 def delete_all_today_attendance(
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
@@ -286,7 +286,7 @@ def delete_all_today_attendance(
     }
 
 
-@router.delete("/admin/user/{user_id}")
+@router.delete("/admin/user/{user_id}/")
 def delete_all_attendance_for_user(
     user_id: str,
     classroom_id: str = Query(...),

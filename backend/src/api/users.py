@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-from typing import List
 import os
 from pathlib import Path
+from typing import List
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+
+from core.config import settings
 from core.dependencies import get_current_admin
 from db.database import get_db
 from db.models import User, UserRole
-from core.config import settings , BASE_DIR
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -68,7 +70,7 @@ def serialize_user(user: User):
 
 # ------------------ READ ENDPOINTS ------------------
 
-@router.get("/{user_id}")
+@router.get("/{user_id}/")
 def get_user(
     user_id: str,
     classroom_id: str = Query(...),
@@ -112,62 +114,64 @@ def get_multiple_users(
         "count": len(users),
     }
 
-
-@router.get("/{user_id}/image")
+@router.get("/{user_id}/image/")
 def get_user_face_image(
     user_id: str,
     classroom_id: str = Query(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     user = (
         db.query(User)
         .filter(
             User.user_id == user_id,
             User.classroom_id == classroom_id,
-            User.role == UserRole.USER
+            User.role == UserRole.USER,
         )
         .first()
     )
 
-    if not user or not user.face_image_path:
-        raise HTTPException(404, "Image not found")
-
-    raw_path = str(user.face_image_path)
-
-    # ✅ Fix Windows slashes
-    normalized_path = raw_path.replace("\\", "/")
-
-    # ✅ Extract filename
-    filename = os.path.basename(normalized_path)
-
-    if not filename:
-        raise HTTPException(500, "Invalid filename extracted")
-
-    # ✅ Correct absolute path
-    correct_path = (
-        BASE_DIR
-        / "backend"
-        / "data"
-        / "raw"
-        / "registrations"
-        / filename
-    )
-
-    if not correct_path.exists():
+    if not user:
         raise HTTPException(
             status_code=404,
-            detail=f"Image file missing on server: {correct_path}"
+            detail="User not found in this classroom",
+        )
+
+    if not user.face_image_path:
+        raise HTTPException(
+            status_code=404,
+            detail="User has no face image",
+        )
+
+    # Normalize stored path
+    normalized_path = str(user.face_image_path).replace("\\", "/")
+
+    # Extract filename only
+    filename = Path(normalized_path).name
+
+    if not filename:
+        raise HTTPException(
+            status_code=500,
+            detail="Invalid face image path",
+        )
+
+    # Canonical runtime location
+    image_path = settings.RAW_FACES_DIR / filename
+
+    if not image_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Image file missing on server: {image_path}",
         )
 
     return FileResponse(
-        path=str(correct_path),
+        path=str(image_path),
         media_type="image/jpeg",
-        filename=correct_path.name,
+        filename=image_path.name,
     )
 
 # ------------------ ADMIN DELETE ENDPOINTS ------------------
 
-@router.delete("/admin/delete-all")
+@router.delete("/admin/delete-all/")
 def delete_all_users(
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
@@ -198,7 +202,7 @@ def delete_all_users(
     }
 
 
-@router.post("/admin/delete-multiple")
+@router.post("/admin/delete-multiple/")
 def delete_multiple_users(
     user_ids: List[str] = Body(..., embed=True),
     classroom_id: str = Query(...),
@@ -234,7 +238,7 @@ def delete_multiple_users(
     }
 
 
-@router.delete("/admin/{user_id}")
+@router.delete("/admin/{user_id}/")
 def delete_user(
     user_id: str,
     classroom_id: str = Query(...),
