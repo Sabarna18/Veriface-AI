@@ -9,7 +9,7 @@ import {
 } from "../api";
 
 import UsersTable from "../components/tables/UsersTable";
-import { useToast } from "../components/ui/Toast";
+import { useToast } from "../components/ui/useToast";
 
 /**
  * UsersPage

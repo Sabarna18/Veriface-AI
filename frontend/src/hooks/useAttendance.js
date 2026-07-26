@@ -1,192 +1,215 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
-    fetchTodayAttendance,
-    fetchAttendanceByDate,
-    fetchAllAttendanceForClassroom,
-    fetchUserAttendanceStatus,
-    deleteTodayAttendanceForUser,
-    deleteAllTodayAttendance,
-    deleteAllAttendanceForUser,
+  fetchTodayAttendance,
+  fetchAttendanceByDate,
+  fetchAllAttendanceForClassroom,
+  fetchUserAttendanceStatus,
+  deleteTodayAttendanceForUser,
+  deleteAllTodayAttendance,
+  deleteAllAttendanceForUser,
 } from "../api";
 
 /**
  * useAttendance
  * -------------
- * Centralized attendance logic (classroom-scoped)
+ * Centralized classroom-scoped attendance logic.
  */
 export const useAttendance = (classroomId) => {
-    const [records, setRecords] = useState([]);
-    const [summary, setSummary] = useState(null);
+  const [records, setRecords] = useState([]);
+  const [summary, setSummary] = useState(null);
 
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-    // ------------------ FETCH ------------------
+  /* =======================
+     FETCH TODAY
+     ======================= */
 
-    const loadTodayAttendance = async () => {
-        if (!classroomId) return;
+  const loadTodayAttendance = useCallback(async () => {
+    if (!classroomId) return;
 
-        setLoading(true);
-        setError(null);
+    setLoading(true);
+    setError(null);
 
-        try {
-            const res = await fetchTodayAttendance(classroomId);
-            setRecords(res.records || []);
-            return res;
-        } catch (err) {
-            setError(err.message || "Failed to fetch attendance");
-        } finally {
-            setLoading(false);
-        }
-    };
+    try {
+      const response = await fetchTodayAttendance(classroomId);
 
-    const loadAttendanceByDate = async (date) => {
-        if (!classroomId || !date) return;
+      setRecords(response.records || []);
 
-        setLoading(true);
-        setError(null);
+      return response;
+    } catch (err) {
+      setError(err.message || "Failed to fetch today's attendance");
+    } finally {
+      setLoading(false);
+    }
+  }, [classroomId]);
 
-        try {
-            const res = await fetchAttendanceByDate(
-                classroomId,
-                date
-            );
-            setRecords(res.records || []);
-            return res;
-        } catch (err) {
-            setError(err.message || "Failed to fetch attendance");
-        } finally {
-            setLoading(false);
-        }
-    };
+  /* =======================
+     FETCH BY DATE
+     ======================= */
 
-    const loadAllAttendance = async () => {
-        if (!classroomId) return;
+  const loadAttendanceByDate = useCallback(
+    async (date) => {
+      if (!classroomId || !date) return;
 
-        setLoading(true);
-        setError(null);
+      setLoading(true);
+      setError(null);
 
-        try {
-            const res = await fetchAllAttendanceForClassroom(classroomId);
-            setRecords(res.records || []);
-            return res;
-        } catch (err) {
-            setError(err.message || "Failed to fetch attendance");
-        } finally {
-            setLoading(false);
-        }
-    };
+      try {
+        const response = await fetchAttendanceByDate(classroomId, date);
 
-    const loadUserAttendanceStatus = async (userId) => {
-        if (!classroomId || !userId) return;
+        setRecords(response.records || []);
 
-        setLoading(true);
-        setError(null);
+        return response;
+      } catch (err) {
+        setError(err.message || "Failed to fetch attendance");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [classroomId],
+  );
 
-        try {
-            const res = await fetchUserAttendanceStatus(
-                userId,
-                classroomId
-            );
-            setSummary(res);
-            return res;
-        } catch (err) {
-            setError(
-                err.message ||
-                "Failed to fetch user attendance status"
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
+  /* =======================
+     FETCH ALL
+     ======================= */
 
-    // ------------------ DELETE ------------------
+  const loadAllAttendance = useCallback(async () => {
+    if (!classroomId) return;
 
-    const removeTodayAttendanceForUser = async (
-        userId
-    ) => {
-        if (!classroomId || !userId) return;
+    setLoading(true);
+    setError(null);
 
-        setLoading(true);
-        setError(null);
+    try {
+      const response = await fetchAllAttendanceForClassroom(classroomId);
 
-        try {
-            await deleteTodayAttendanceForUser(
-                userId,
-                classroomId
-            );
-            await loadTodayAttendance();
-        } catch (err) {
-            setError(
-                err.message ||
-                "Failed to delete today's attendance"
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
+      setRecords(response.records || []);
 
-    const removeAllTodayAttendance = async () => {
-        if (!classroomId) return;
+      return response;
+    } catch (err) {
+      setError(err.message || "Failed to fetch attendance");
+    } finally {
+      setLoading(false);
+    }
+  }, [classroomId]);
 
-        setLoading(true);
-        setError(null);
+  /* =======================
+     USER ATTENDANCE STATUS
+     ======================= */
 
-        try {
-            await deleteAllTodayAttendance(classroomId);
-            setRecords([]);
-        } catch (err) {
-            setError(
-                err.message ||
-                "Failed to delete today's attendance"
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
+  const loadUserAttendanceStatus = useCallback(
+    async (userId) => {
+      if (!classroomId || !userId) return;
 
-    const removeAllAttendanceForUser = async (
-        userId
-    ) => {
-        if (!classroomId || !userId) return;
+      setLoading(true);
+      setError(null);
 
-        setLoading(true);
-        setError(null);
+      try {
+        const response = await fetchUserAttendanceStatus(userId, classroomId);
 
-        try {
-            await deleteAllAttendanceForUser(
-                userId,
-                classroomId
-            );
-            setRecords([]);
-        } catch (err) {
-            setError(
-                err.message ||
-                "Failed to delete user attendance"
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
+        setSummary(response);
 
-    return {
-        // data
-        records,
-        summary,
+        return response;
+      } catch (err) {
+        setError(err.message || "Failed to fetch user attendance status");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [classroomId],
+  );
 
-        // state
-        loading,
-        error,
+  /* =======================
+     DELETE TODAY FOR USER
+     ======================= */
 
-        // fetchers
-        loadTodayAttendance,
-        loadAttendanceByDate,
-        loadAllAttendance,
-        loadUserAttendanceStatus,
+  const removeTodayAttendanceForUser = useCallback(
+    async (userId) => {
+      if (!classroomId || !userId) return;
 
-        // mutators
-        removeTodayAttendanceForUser,
-        removeAllTodayAttendance,
-        removeAllAttendanceForUser,
-    };
+      setLoading(true);
+      setError(null);
+
+      try {
+        await deleteTodayAttendanceForUser(userId, classroomId);
+
+        await loadTodayAttendance();
+      } catch (err) {
+        setError(err.message || "Failed to delete today's attendance");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [classroomId, loadTodayAttendance],
+  );
+
+  /* =======================
+     DELETE ALL TODAY
+     ======================= */
+
+  const removeAllTodayAttendance = useCallback(async () => {
+    if (!classroomId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await deleteAllTodayAttendance(classroomId);
+
+      setRecords([]);
+    } catch (err) {
+      setError(err.message || "Failed to delete today's attendance");
+    } finally {
+      setLoading(false);
+    }
+  }, [classroomId]);
+
+  /* =======================
+     DELETE ALL FOR USER
+     ======================= */
+
+  const removeAllAttendanceForUser = useCallback(
+    async (userId) => {
+      if (!classroomId || !userId) return;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        await deleteAllAttendanceForUser(userId, classroomId);
+
+        setRecords([]);
+      } catch (err) {
+        setError(err.message || "Failed to delete user attendance");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [classroomId],
+  );
+
+  /* =======================
+     PUBLIC API
+     ======================= */
+
+  return {
+    // Data
+    records,
+    summary,
+
+    // State
+    loading,
+    error,
+
+    // Fetchers
+    loadTodayAttendance,
+    loadAttendanceByDate,
+    loadAllAttendance,
+    loadUserAttendanceStatus,
+
+    // Mutators
+    removeTodayAttendanceForUser,
+    removeAllTodayAttendance,
+    removeAllAttendanceForUser,
+  };
 };

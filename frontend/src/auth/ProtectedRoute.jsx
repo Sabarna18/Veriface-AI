@@ -1,43 +1,45 @@
-// src/auth/ProtectedRoute.jsx
-
 import { useAuth } from "./AuthContext";
 
 export default function ProtectedRoute({ children }) {
-    const { isAdmin, loading } = useAuth();
+  const { isAdmin, loading } = useAuth();
 
-    // Prevent UI flicker on initial load
-    if (loading) {
-        return null; // or <Loader />
-    }
+  if (loading) {
+    return null;
+  }
 
-    // Admin → full access
-    if (isAdmin) {
-        return children;
-    }
+  if (isAdmin) {
+    return children;
+  }
 
-    // Public user → show disabled state
-    return (
-        <div className="relative">
-            {/* Dimmed content */}
-            <div className="opacity-50 pointer-events-none">
-                {children}
-            </div>
+  return (
+    <div className="relative">
+      <div
+        className="opacity-50 pointer-events-none select-none"
+        aria-hidden="true"
+      >
+        {children}
+      </div>
 
-            {/* Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-white/90 backdrop-blur-md border border-gray-200 shadow-lg rounded-xl p-6 text-center max-w-sm">
-                    <div className="text-3xl mb-2">🔒</div>
-                    <h3 className="text-lg font-semibold text-gray-800">
-                        Admin Access Required
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-2">
-                        Please login as an admin to use this feature.
-                    </p>
-                    <p className="text-xs text-gray-500 mt-3">
-                        You can login anytime using the <strong>Admin Login</strong> button above.
-                    </p>
-                </div>
-            </div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="max-w-sm rounded-xl border border-gray-200 bg-white/90 p-6 text-center shadow-lg backdrop-blur-md">
+          <div className="mb-2 text-3xl" aria-hidden="true">
+            🔒
+          </div>
+
+          <h3 className="text-lg font-semibold text-gray-800">
+            Admin Access Required
+          </h3>
+
+          <p className="mt-2 text-sm text-gray-600">
+            Please log in as an admin to use this feature.
+          </p>
+
+          <p className="mt-3 text-xs text-gray-500">
+            You can log in anytime using the <strong>Admin Login</strong> button
+            above.
+          </p>
         </div>
-    );
+      </div>
+    </div>
+  );
 }

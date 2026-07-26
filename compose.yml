@@ -68,13 +68,25 @@ services:
     volumes:
       # ------------------------------------------------------
       # Persistent application data
+      # Face images, embeddings, attendance files
       # ------------------------------------------------------
       - backend_data:/app/data
 
       # ------------------------------------------------------
-      # Cached ML / DeepFace models
+      # Application-managed ML models
       # ------------------------------------------------------
       - backend_models:/app/models
+
+      # ------------------------------------------------------
+      # DeepFace model weights
+      #
+      # ArcFace and other DeepFace model weights are
+      # downloaded here by DeepFace.
+      #
+      # Persisting this directory prevents models from being
+      # downloaded again when the container is recreated.
+      # ------------------------------------------------------
+      - deepface_weights:/root/.deepface/weights
 
       # ------------------------------------------------------
       # Application logs
@@ -94,7 +106,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8002/health/')",
         ]
       interval: 30s
       timeout: 10s
@@ -145,8 +157,12 @@ volumes:
   # Face images, embeddings, attendance files
   backend_data:
 
-  # ML model cache
+  # Application-managed ML model cache
   backend_models:
+
+  # DeepFace model weights
+  # Includes ArcFace weights downloaded by DeepFace
+  deepface_weights:
 
   # Backend application logs
   backend_logs:

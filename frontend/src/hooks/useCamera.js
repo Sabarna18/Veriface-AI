@@ -29,7 +29,7 @@ const useCamera = () => {
             }
 
             setIsCameraOn(true);
-        } catch (err) {
+        } catch{
             setError("Unable to access camera");
         }
     };

@@ -25,7 +25,7 @@ const Sidebar = () => {
 
 
   const { classroomId } = useClassroomContext();
-  const { admin, isAdmin, logout } = useAuth();
+  const { isAdmin} = useAuth();
 
   const theme = isAdmin ? sidebarTheme.admin : sidebarTheme.normal;
 
