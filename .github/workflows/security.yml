@@ -147,10 +147,11 @@ jobs:
   # Trivy Filesystem Scan
   # ==========================================================
 
+
   trivy:
-    name: Trivy Filesystem Scan
+    name: Trivy Security Scan
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     permissions:
       contents: read
@@ -165,11 +166,19 @@ jobs:
         uses: actions/checkout@v4
 
       # ------------------------------------------------------
-      # SARIF Scan
+      # Trivy SARIF Scan
+      #
+      # Scans:
+      # - Python dependencies
+      # - npm dependencies
+      # - Dockerfiles
+      # - Docker Compose
+      # - IaC / configuration
+      # - Known vulnerabilities
       # ------------------------------------------------------
 
       - name: Run Trivy SARIF Scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
@@ -177,9 +186,14 @@ jobs:
           output: trivy-results.sarif
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          scanners: vuln,misconfig,secret
+          exit-code: "0"
 
       # ------------------------------------------------------
-      # GitHub Security Upload
+      # Upload Results to GitHub Security
+      #
+      # SARIF scan does not fail the job. Its purpose is to
+      # publish findings to GitHub code scanning.
       # ------------------------------------------------------
 
       - name: Upload Trivy Results
@@ -187,21 +201,28 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
+          category: trivy-filesystem
 
       # ------------------------------------------------------
       # Security Gate
+      #
+      # Run a second scan in table format and fail the job
+      # when a HIGH or CRITICAL vulnerability/misconfiguration
+      # is detected.
       # ------------------------------------------------------
 
       - name: Run Trivy Security Gate
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
           format: table
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+          scanners: vuln,misconfig
           exit-code: "1"
 
+  
   # ==========================================================
   # Secret Scanning
   # ==========================================================
