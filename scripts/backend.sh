@@ -62,7 +62,7 @@ cd "${BACKEND_DIR}"
 
 log "Synchronizing backend dependencies"
 
-uv sync --frozen
+uv sync --frozen --extra dev
 
 # ------------------------------------------------------------
 # Ruff lint
