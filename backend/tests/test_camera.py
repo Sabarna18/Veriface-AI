@@ -1,16 +1,20 @@
 # backend/tests/test_camera.py
 
+# -------------------- IMPORTS --------------------
+
 import sys
 from pathlib import Path
+
 import pytest
 
+from core.camera import Camera
+
 # -------------------- PATH FIX --------------------
+
+
 BASE_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = BASE_DIR / "src"
 sys.path.append(str(SRC_DIR))
-
-# -------------------- IMPORTS --------------------
-from core.camera import Camera
 
 
 @pytest.mark.skip(reason="Requires physical camera")

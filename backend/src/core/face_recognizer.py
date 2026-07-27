@@ -1,6 +1,7 @@
 # backend/src/core/face_recognizer.py
 
 from deepface import DeepFace
+
 from core.config import settings
 
 
@@ -12,7 +13,7 @@ class FaceRecognizer:
             model_name=settings.MODEL_NAME,
             detector_backend=settings.DETECTOR_BACKEND,
             distance_metric=settings.DISTANCE_METRIC,
-            enforce_detection=True
+            enforce_detection=True,
         )
         return result
 
@@ -21,6 +22,6 @@ class FaceRecognizer:
             img_path=img_path,
             model_name=settings.MODEL_NAME,
             detector_backend=settings.DETECTOR_BACKEND,
-            enforce_detection=False
+            enforce_detection=False,
         )
         return embedding[0]["embedding"]

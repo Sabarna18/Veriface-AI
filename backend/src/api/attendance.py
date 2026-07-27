@@ -1,7 +1,9 @@
+from datetime import date, datetime
+
+import pytz
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from datetime import date, datetime, timezone
-import pytz
+
 from core.dependencies import get_current_admin
 from db.database import get_db
 from db.models import Attendance, User, UserRole
@@ -10,6 +12,7 @@ router = APIRouter(prefix="/attendance", tags=["Attendance"])
 IST = pytz.timezone("Asia/Kolkata")
 
 # ------------------ MARK ATTENDANCE (STUDENT) ------------------
+
 
 @router.post("/mark/{user_id}/")
 def mark_attendance(
@@ -23,7 +26,7 @@ def mark_attendance(
         .filter(
             User.user_id == user_id,
             User.classroom_id == classroom_id,
-            User.role == UserRole.USER
+            User.role == UserRole.USER,
         )
         .first()
     )
@@ -39,7 +42,7 @@ def mark_attendance(
         .filter(
             Attendance.user_id == user_id,
             Attendance.classroom_id == classroom_id,
-            Attendance.date == today
+            Attendance.date == today,
         )
         .first()
     )
@@ -71,6 +74,7 @@ def mark_attendance(
 
 # ------------------ READ ATTENDANCE (PUBLIC) ------------------
 
+
 @router.get("/today/")
 def get_today_attendance(
     classroom_id: str = Query(...),
@@ -85,7 +89,7 @@ def get_today_attendance(
             Attendance.date == today,
             Attendance.classroom_id == classroom_id,
             User.classroom_id == classroom_id,
-            User.role == UserRole.USER
+            User.role == UserRole.USER,
         )
         .all()
     )
@@ -117,7 +121,7 @@ def get_attendance_by_date(
             Attendance.date == attendance_date,
             Attendance.classroom_id == classroom_id,
             User.classroom_id == classroom_id,
-            User.role == UserRole.USER
+            User.role == UserRole.USER,
         )
         .all()
     )
@@ -147,7 +151,7 @@ def get_all_attendance_for_classroom(
         .filter(
             Attendance.classroom_id == classroom_id,
             User.classroom_id == classroom_id,
-            User.role == UserRole.USER
+            User.role == UserRole.USER,
         )
         .order_by(Attendance.date.desc(), Attendance.time.asc())
         .all()
@@ -178,7 +182,7 @@ def get_day_wise_attendance_status(
         .filter(
             User.user_id == user_id,
             User.classroom_id == classroom_id,
-            User.role == UserRole.USER
+            User.role == UserRole.USER,
         )
         .first()
     )
@@ -196,10 +200,7 @@ def get_day_wise_attendance_status(
 
     present_dates = (
         db.query(Attendance.date)
-        .filter(
-            Attendance.user_id == user_id,
-            Attendance.classroom_id == classroom_id
-        )
+        .filter(Attendance.user_id == user_id, Attendance.classroom_id == classroom_id)
         .all()
     )
 
@@ -225,12 +226,13 @@ def get_day_wise_attendance_status(
 
 # ------------------ ADMIN DELETE ENDPOINTS ------------------
 
+
 @router.delete("/admin/today/{user_id}/")
 def delete_today_attendance_for_user(
     user_id: str,
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
-    admin = Depends(get_current_admin),
+    admin=Depends(get_current_admin),
 ):
     today = date.today()
 
@@ -239,7 +241,7 @@ def delete_today_attendance_for_user(
         .filter(
             Attendance.user_id == user_id,
             Attendance.classroom_id == classroom_id,
-            Attendance.date == today
+            Attendance.date == today,
         )
         .first()
     )
@@ -261,16 +263,13 @@ def delete_today_attendance_for_user(
 def delete_all_today_attendance(
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
-    admin = Depends(get_current_admin),
+    admin=Depends(get_current_admin),
 ):
     today = date.today()
 
     records = (
         db.query(Attendance)
-        .filter(
-            Attendance.date == today,
-            Attendance.classroom_id == classroom_id
-        )
+        .filter(Attendance.date == today, Attendance.classroom_id == classroom_id)
         .all()
     )
 
@@ -291,14 +290,11 @@ def delete_all_attendance_for_user(
     user_id: str,
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
-    admin = Depends(get_current_admin),
+    admin=Depends(get_current_admin),
 ):
     records = (
         db.query(Attendance)
-        .filter(
-            Attendance.user_id == user_id,
-            Attendance.classroom_id == classroom_id
-        )
+        .filter(Attendance.user_id == user_id, Attendance.classroom_id == classroom_id)
         .all()
     )
 

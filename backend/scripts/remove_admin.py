@@ -31,9 +31,11 @@ def remove_admin():
             return
 
         # -------------------- CONFIRMATION --------------------
-        confirm = input(
-            f"⚠️ Are you sure you want to DELETE admin '{user_id}'? (yes/no): "
-        ).strip().lower()
+        confirm = (
+            input(f"⚠️ Are you sure you want to DELETE admin '{user_id}'? (yes/no): ")
+            .strip()
+            .lower()
+        )
 
         if confirm != "yes":
             print("❌ Operation cancelled")

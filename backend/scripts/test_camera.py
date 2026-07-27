@@ -3,14 +3,14 @@
 import sys
 from pathlib import Path
 
+import cv2
+
+from core.camera import Camera
+
 # -------------------- PATH FIX --------------------
 BASE_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = BASE_DIR / "src"
 sys.path.append(str(SRC_DIR))
-
-# -------------------- IMPORTS --------------------
-import cv2
-from core.camera import Camera
 
 
 def main():

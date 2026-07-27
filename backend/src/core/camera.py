@@ -1,6 +1,7 @@
 # backend/src/core/camera.py
 
 import cv2
+
 from core.config import settings
 
 

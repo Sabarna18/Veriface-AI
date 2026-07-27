@@ -1,5 +1,5 @@
-from db.models import User, UserRole
 from core.security import get_password_hash
+from db.models import User, UserRole
 
 
 def get_admin_token(client, db):

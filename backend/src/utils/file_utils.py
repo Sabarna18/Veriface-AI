@@ -1,8 +1,7 @@
 # backend/src/utils/file_utils.py
 
-from pathlib import Path
 from datetime import datetime
-
+from pathlib import Path
 
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 

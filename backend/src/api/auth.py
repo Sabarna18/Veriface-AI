@@ -1,23 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
+from core.config import settings
+from core.security import create_access_token, verify_password
 from db.database import get_db
 from db.models import User, UserRole
-from schemas.auth import AdminLoginRequest, AdminLoginResponse
-from core.security import verify_password, create_access_token
-from fastapi import Depends
-from fastapi.security import OAuth2PasswordBearer , OAuth2PasswordRequestForm
-from jose import JWTError, jwt
-
-from core.config import settings
-from db.models import UserRole
+from schemas.auth import AdminLoginResponse
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login/")
 
-router = APIRouter(
-    prefix="/auth",
-    tags=["Auth"]
-)
+router = APIRouter(prefix="/auth", tags=["Auth"])
+
 
 def get_current_admin(
     token: str = Depends(oauth2_scheme),
@@ -133,21 +128,13 @@ def get_admin_me(
 #     )
 
 
-
 @router.post(
-    "/login/",
-    response_model=AdminLoginResponse,
-    status_code=status.HTTP_200_OK
+    "/login/", response_model=AdminLoginResponse, status_code=status.HTTP_200_OK
 )
 def admin_login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
-    user = (
-        db.query(User)
-        .filter(User.user_id == form_data.username)
-        .first()
-    )
+    user = db.query(User).filter(User.user_id == form_data.username).first()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -165,14 +152,9 @@ def admin_login(
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(
-        data={
-            "sub": user.user_id,
-            "role": user.role.value
-        }
+        data={"sub": user.user_id, "role": user.role.value}
     )
 
     return AdminLoginResponse(
-        access_token=access_token,
-        token_type="bearer",
-        role=user.role
+        access_token=access_token, token_type="bearer", role=user.role
     )

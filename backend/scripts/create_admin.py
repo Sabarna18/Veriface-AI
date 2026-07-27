@@ -3,11 +3,9 @@ One-time script to create an ADMIN user
 Run manually from terminal
 """
 
-from getpass import getpass
-
+from core.security import get_password_hash
 from db.database import SessionLocal
 from db.models import User, UserRole
-from core.security import get_password_hash
 
 
 def create_admin():
@@ -44,7 +42,7 @@ def create_admin():
 
         print("\n✅ Admin created successfully")
         print(f"   ID        : {user_id}")
-        print(f"   Role      : ADMIN")
+        print("   Role      : ADMIN")
         print(f"   Classroom : {classroom_id}")
 
     except Exception as e:

@@ -3,8 +3,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from server import app
 from db.database import Base, get_db
+from server import app
 
 # ------------------------
 # Test Database Setup
@@ -28,6 +28,7 @@ TestingSessionLocal = sessionmaker(
 # DB fixture (isolated per test)
 # ------------------------
 
+
 @pytest.fixture(scope="function")
 def db():
     connection = engine.connect()
@@ -48,6 +49,7 @@ def db():
 # ------------------------
 # Client fixture
 # ------------------------
+
 
 @pytest.fixture(scope="function")
 def client(db):

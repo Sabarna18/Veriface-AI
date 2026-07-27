@@ -1,21 +1,21 @@
 # backend/scripts/register_face.py
 
+# -------------------- IMPORTS --------------------
 import sys
 from pathlib import Path
+
+import cv2
+
+from core.camera import Camera
+from core.config import settings
+from core.embedding_manager import EmbeddingManager
+from core.face_recognizer import FaceRecognizer
+from utils.image_utils import save_image
 
 # -------------------- PATH FIX --------------------
 BASE_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = BASE_DIR / "src"
 sys.path.append(str(SRC_DIR))
-
-# -------------------- IMPORTS --------------------
-import cv2
-
-from core.camera import Camera
-from core.face_recognizer import FaceRecognizer
-from core.embedding_manager import EmbeddingManager
-from core.config import settings
-from utils.image_utils import save_image
 
 
 def main():

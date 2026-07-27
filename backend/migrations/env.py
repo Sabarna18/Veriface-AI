@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+import sys
 from logging.config import fileConfig
 from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-import sys
+# ==========================================================
+# Application imports
+# ==========================================================
+from src.core.config import settings
+
+# Import all ORM models so they are registered with Base.metadata
+from src.db import models  # noqa: F401
+from src.db.database import Base
 
 # ==========================================================
 # Make project importable
@@ -17,15 +25,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# ==========================================================
-# Application imports
-# ==========================================================
-
-from src.core.config import settings
-from src.db.database import Base
-
-# Import all ORM models so they are registered with Base.metadata
-from src.db import models  # noqa: F401
 
 # ==========================================================
 # Alembic Configuration
@@ -89,7 +88,6 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

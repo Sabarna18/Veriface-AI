@@ -1,11 +1,9 @@
 # backend/scripts/fix_image_paths.py
 
-from pathlib import Path
-import os
 
+from core.config import settings
 from db.database import SessionLocal
 from db.models import User
-from core.config import settings
 
 
 def fix_paths():

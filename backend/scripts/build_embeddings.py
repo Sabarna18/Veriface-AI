@@ -1,17 +1,19 @@
 # backend/scripts/build_embeddings.py
 
+# -------------------- IMPORTS -------------------
+
+
 import sys
 from pathlib import Path
+
+from core.config import settings
+from core.embedding_manager import EmbeddingManager
+from core.face_recognizer import FaceRecognizer
 
 # -------------------- PATH FIX --------------------
 BASE_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = BASE_DIR / "src"
 sys.path.append(str(SRC_DIR))
-
-# -------------------- IMPORTS --------------------
-from core.face_recognizer import FaceRecognizer
-from core.embedding_manager import EmbeddingManager
-from core.config import settings
 
 
 def main():

@@ -8,7 +8,7 @@ def main():
         "src.server:app",
         host="0.0.0.0",
         port=8002,
-        reload=True,          # disable in production
+        reload=True,  # disable in production
         log_level="info",
     )
 

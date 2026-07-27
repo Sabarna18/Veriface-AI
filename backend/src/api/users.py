@@ -16,10 +16,6 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 # ------------------ UTILS ------------------
 
-from pathlib import Path
-import os
-from core.config import settings
-
 
 def delete_face_image(path: str):
     if not path:
@@ -61,14 +57,12 @@ def serialize_user(user: User):
         "user_id": user.user_id,
         "classroom_id": user.classroom_id,
         "face_image_path": user.face_image_path,
-        "created_at": (
-            user.created_at.isoformat()
-            if user.created_at else None
-        ),
+        "created_at": (user.created_at.isoformat() if user.created_at else None),
     }
 
 
 # ------------------ READ ENDPOINTS ------------------
+
 
 @router.get("/{user_id}/")
 def get_user(
@@ -81,7 +75,7 @@ def get_user(
         .filter(
             User.user_id == user_id,
             User.classroom_id == classroom_id,
-            User.role == UserRole.USER
+            User.role == UserRole.USER,
         )
         .first()
     )
@@ -99,8 +93,7 @@ def get_multiple_users(
     db: Session = Depends(get_db),
 ):
     query = db.query(User).filter(
-        User.classroom_id == classroom_id,
-        User.role == UserRole.USER
+        User.classroom_id == classroom_id, User.role == UserRole.USER
     )
 
     if user_ids:
@@ -113,6 +106,7 @@ def get_multiple_users(
         "users": [serialize_user(u) for u in users],
         "count": len(users),
     }
+
 
 @router.get("/{user_id}/image/")
 def get_user_face_image(
@@ -169,20 +163,19 @@ def get_user_face_image(
         filename=image_path.name,
     )
 
+
 # ------------------ ADMIN DELETE ENDPOINTS ------------------
+
 
 @router.delete("/admin/delete-all/")
 def delete_all_users(
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
-    admin = Depends(get_current_admin)
+    admin=Depends(get_current_admin),
 ):
     users = (
         db.query(User)
-        .filter(
-            User.classroom_id == classroom_id,
-            User.role == UserRole.USER
-        )
+        .filter(User.classroom_id == classroom_id, User.role == UserRole.USER)
         .all()
     )
 
@@ -207,14 +200,14 @@ def delete_multiple_users(
     user_ids: List[str] = Body(..., embed=True),
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
-    admin = Depends(get_current_admin)
+    admin=Depends(get_current_admin),
 ):
     users = (
         db.query(User)
         .filter(
             User.classroom_id == classroom_id,
             User.user_id.in_(user_ids),
-            User.role == UserRole.USER
+            User.role == UserRole.USER,
         )
         .all()
     )
@@ -243,14 +236,14 @@ def delete_user(
     user_id: str,
     classroom_id: str = Query(...),
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin)
+    admin=Depends(get_current_admin),
 ):
     user = (
         db.query(User)
         .filter(
             User.user_id == user_id,
             User.classroom_id == classroom_id,
-            User.role == UserRole.USER
+            User.role == UserRole.USER,
         )
         .first()
     )
@@ -269,4 +262,3 @@ def delete_user(
         "message": "User and face image deleted successfully",
         "user_id": user_id,
     }
-

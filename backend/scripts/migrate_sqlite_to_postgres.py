@@ -29,7 +29,6 @@ from sqlalchemy.engine import Connection, Engine
 
 from core.config import settings
 
-
 # ==========================================================
 # Configuration
 # ==========================================================
@@ -52,10 +51,7 @@ MIGRATION_ORDER = (
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description=(
-            "Migrate legacy VeriFace AI data "
-            "from SQLite to PostgreSQL."
-        )
+        description=("Migrate legacy VeriFace AI data from SQLite to PostgreSQL.")
     )
 
     parser.add_argument(
@@ -77,20 +73,12 @@ def create_sqlite_engine(
     database_path: Path,
 ) -> Engine:
     if not database_path.exists():
-        raise FileNotFoundError(
-            f"Legacy SQLite database not found: "
-            f"{database_path}"
-        )
+        raise FileNotFoundError(f"Legacy SQLite database not found: {database_path}")
 
     if not database_path.is_file():
-        raise ValueError(
-            f"SQLite database path is not a file: "
-            f"{database_path}"
-        )
+        raise ValueError(f"SQLite database path is not a file: {database_path}")
 
-    database_url = (
-        f"sqlite:///{database_path.resolve()}"
-    )
+    database_url = f"sqlite:///{database_path.resolve()}"
 
     return create_engine(
         database_url,
@@ -126,30 +114,20 @@ def get_common_tables(
     sqlite_inspector = inspect(sqlite_engine)
     postgres_inspector = inspect(postgres_engine)
 
-    sqlite_tables = set(
-        sqlite_inspector.get_table_names()
-    )
+    sqlite_tables = set(sqlite_inspector.get_table_names())
 
-    postgres_tables = set(
-        postgres_inspector.get_table_names()
-    )
+    postgres_tables = set(postgres_inspector.get_table_names())
 
-    common_tables = (
-        sqlite_tables & postgres_tables
-    )
+    common_tables = sqlite_tables & postgres_tables
 
     ordered_tables = [
-        table_name
-        for table_name in MIGRATION_ORDER
-        if table_name in common_tables
+        table_name for table_name in MIGRATION_ORDER if table_name in common_tables
     ]
 
     # Include additional application tables that exist
     # in both databases but aren't explicitly listed above.
     additional_tables = sorted(
-        common_tables
-        - set(ordered_tables)
-        - {"alembic_version"}
+        common_tables - set(ordered_tables) - {"alembic_version"}
     )
 
     return ordered_tables + additional_tables
@@ -172,11 +150,7 @@ def transform_value(
     application data lives under /app/data.
     """
 
-    if (
-        column_name == "face_image_path"
-        and isinstance(value, str)
-        and value
-    ):
+    if column_name == "face_image_path" and isinstance(value, str) and value:
         marker = "/data/"
 
         if marker in value:
@@ -185,10 +159,7 @@ def transform_value(
                 maxsplit=1,
             )[1]
 
-            return str(
-                Path("/app/data")
-                / relative_path
-            )
+            return str(Path("/app/data") / relative_path)
 
     return value
 
@@ -210,11 +181,9 @@ def transform_row(
         if column_name not in destination_columns:
             continue
 
-        transformed[column_name] = (
-            transform_value(
-                column_name,
-                value,
-            )
+        transformed[column_name] = transform_value(
+            column_name,
+            value,
         )
 
     return transformed
@@ -230,9 +199,7 @@ def record_exists(
     table: Table,
     row: dict[str, Any],
 ) -> bool:
-    primary_key_columns = list(
-        table.primary_key.columns
-    )
+    primary_key_columns = list(table.primary_key.columns)
 
     if not primary_key_columns:
         return False
@@ -243,20 +210,11 @@ def record_exists(
         if column.name not in row:
             return False
 
-        conditions.append(
-            column == row[column.name]
-        )
+        conditions.append(column == row[column.name])
 
-    query = (
-        select(table)
-        .where(*conditions)
-        .limit(1)
-    )
+    query = select(table).where(*conditions).limit(1)
 
-    return (
-        connection.execute(query).first()
-        is not None
-    )
+    return connection.execute(query).first() is not None
 
 
 def migrate_table(
@@ -278,14 +236,9 @@ def migrate_table(
         autoload_with=postgres_connection,
     )
 
-    destination_columns = {
-        column.name
-        for column in destination_table.columns
-    }
+    destination_columns = {column.name for column in destination_table.columns}
 
-    rows = sqlite_connection.execute(
-        select(source_table)
-    ).mappings()
+    rows = sqlite_connection.execute(select(source_table)).mappings()
 
     inserted = 0
     skipped = 0
@@ -308,11 +261,7 @@ def migrate_table(
             skipped += 1
             continue
 
-        postgres_connection.execute(
-            destination_table.insert().values(
-                **row
-            )
-        )
+        postgres_connection.execute(destination_table.insert().values(**row))
 
         inserted += 1
 
@@ -328,44 +277,26 @@ def run_migration(
     sqlite_path: Path,
 ) -> None:
     print("")
-    print(
-        "=============================================="
-    )
-    print(
-        " VeriFace AI Legacy Database Migration"
-    )
-    print(
-        "=============================================="
-    )
+    print("==============================================")
+    print(" VeriFace AI Legacy Database Migration")
+    print("==============================================")
     print("")
 
-    print(
-        f"Source      : {sqlite_path}"
-    )
-    print(
-        "Destination : PostgreSQL"
-    )
+    print(f"Source      : {sqlite_path}")
+    print("Destination : PostgreSQL")
     print("")
 
-    sqlite_engine = create_sqlite_engine(
-        sqlite_path
-    )
+    sqlite_engine = create_sqlite_engine(sqlite_path)
 
-    postgres_engine = (
-        create_postgres_engine()
-    )
+    postgres_engine = create_postgres_engine()
 
     try:
         # Verify both databases are reachable.
         with sqlite_engine.connect():
-            print(
-                "✓ SQLite database reachable"
-            )
+            print("✓ SQLite database reachable")
 
         with postgres_engine.connect():
-            print(
-                "✓ PostgreSQL database reachable"
-            )
+            print("✓ PostgreSQL database reachable")
 
         tables = get_common_tables(
             sqlite_engine,
@@ -374,21 +305,14 @@ def run_migration(
 
         if not tables:
             print("")
-            print(
-                "No common application tables "
-                "found to migrate."
-            )
+            print("No common application tables found to migrate.")
             return
 
         print("")
-        print(
-            "Tables selected for migration:"
-        )
+        print("Tables selected for migration:")
 
         for table_name in tables:
-            print(
-                f"  - {table_name}"
-            )
+            print(f"  - {table_name}")
 
         print("")
 
@@ -399,63 +323,37 @@ def run_migration(
         total_skipped = 0
 
         with sqlite_engine.connect() as source:
-
             # begin() creates a PostgreSQL transaction.
             #
             # If migration fails, all PostgreSQL changes
             # from this migration run are rolled back.
             with postgres_engine.begin() as destination:
-
                 for table_name in tables:
+                    print(f"Migrating table: {table_name}")
 
-                    print(
-                        f"Migrating table: "
-                        f"{table_name}"
-                    )
-
-                    inserted, skipped = (
-                        migrate_table(
-                            table_name,
-                            source,
-                            destination,
-                            sqlite_metadata,
-                            postgres_metadata,
-                        )
+                    inserted, skipped = migrate_table(
+                        table_name,
+                        source,
+                        destination,
+                        sqlite_metadata,
+                        postgres_metadata,
                     )
 
                     total_inserted += inserted
                     total_skipped += skipped
 
-                    print(
-                        f"  Inserted : "
-                        f"{inserted}"
-                    )
+                    print(f"  Inserted : {inserted}")
 
-                    print(
-                        f"  Skipped  : "
-                        f"{skipped}"
-                    )
+                    print(f"  Skipped  : {skipped}")
 
         print("")
-        print(
-            "=============================================="
-        )
-        print(
-            " Migration Completed Successfully"
-        )
-        print(
-            "=============================================="
-        )
+        print("==============================================")
+        print(" Migration Completed Successfully")
+        print("==============================================")
 
-        print(
-            f"Total inserted : "
-            f"{total_inserted}"
-        )
+        print(f"Total inserted : {total_inserted}")
 
-        print(
-            f"Total skipped  : "
-            f"{total_skipped}"
-        )
+        print(f"Total skipped  : {total_skipped}")
 
         print("")
 
@@ -473,9 +371,7 @@ def main() -> None:
     args = parse_arguments()
 
     try:
-        run_migration(
-            args.sqlite_db
-        )
+        run_migration(args.sqlite_db)
 
     except Exception as exc:
         print(

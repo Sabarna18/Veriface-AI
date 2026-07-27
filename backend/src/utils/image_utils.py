@@ -1,8 +1,9 @@
 # backend/src/utils/image_utils.py
 
-import cv2
 import uuid
 from pathlib import Path
+
+import cv2
 
 
 def resize_image(image, width: int = 224, height: int = 224):
@@ -16,7 +17,7 @@ def crop_face(image, x: int, y: int, w: int, h: int):
     """
     Crop face region from image.
     """
-    return image[y:y + h, x:x + w]
+    return image[y : y + h, x : x + w]
 
 
 def save_image(image, directory: Path, prefix: str = "img"):

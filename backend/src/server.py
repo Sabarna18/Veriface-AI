@@ -1,27 +1,25 @@
 # backend/src/main.py
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-from api import users
+
+# -------------------- API ROUTERS --------------------
+from api import (
+    attendance_router,
+    auth_router,
+    classroom_router,
+    health_router,
+    recognition_router,
+    registration_router,
+    users_router,
+)
 
 # -------------------- CONFIG --------------------
 from core.config import settings
 
-# -------------------- API ROUTERS --------------------
-from api import (
-    health_router,
-    registration_router,
-    recognition_router,
-    attendance_router,
-    users_router,
-    classroom_router,
-    auth_router
-    
-)
-
 # -------------------- DB (OPTIONAL) --------------------
-from db.database import Base, engine
 
 
 # -------------------- APP LIFESPAN --------------------
@@ -32,7 +30,6 @@ async def lifespan(app: FastAPI):
     """
     # Create DB tables if DB is used
     try:
-
         print("✅ Database initialized")
     except Exception as e:
         print(f"⚠️ Database initialization skipped: {e}")
@@ -55,10 +52,7 @@ app = FastAPI(
 # -------------------- CORS --------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        origin.strip()
-        for origin in settings.CORS_ORIGINS.split(",")
-    ],
+    allow_origins=[origin.strip() for origin in settings.CORS_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -73,7 +67,6 @@ app.include_router(attendance_router)
 app.include_router(users_router)
 app.include_router(classroom_router)
 app.include_router(auth_router)
-
 
 
 # -------------------- ROOT --------------------

@@ -1,30 +1,24 @@
+import os
+import shutil
+import tempfile
+
+import numpy as np
 from fastapi import (
     APIRouter,
     Depends,
-    UploadFile,
     File,
     Form,
     HTTPException,
+    UploadFile,
 )
-
 from sqlalchemy.orm import Session
-
-import tempfile
-import shutil
-import os
-import numpy as np
-
-from db.database import get_db
-from db.models import User
 
 from core.config import settings
 from core.embedding_manager import generate_embedding
+from db.database import get_db
+from db.models import User
 
-
-router = APIRouter(
-    prefix="/recognize",
-    tags=["Recognition"]
-)
+router = APIRouter(prefix="/recognize", tags=["Recognition"])
 
 # ---------------------------------------------------
 # CONFIG
@@ -44,14 +38,12 @@ EMBEDDING_CACHE = {}
 # COSINE DISTANCE
 # ---------------------------------------------------
 
+
 def cosine_distance(a, b):
     a = np.array(a)
     b = np.array(b)
 
-    return 1 - (
-        np.dot(a, b)
-        / (np.linalg.norm(a) * np.linalg.norm(b))
-    )
+    return 1 - (np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
 
 # ---------------------------------------------------
@@ -59,26 +51,20 @@ def cosine_distance(a, b):
 # VERSION-AWARE + CACHED
 # ---------------------------------------------------
 
-def get_stored_embedding(user: User):
 
+def get_stored_embedding(user: User):
     # ---------------- CACHE HIT ----------------
 
     cached = EMBEDDING_CACHE.get(user.user_id)
 
     if cached:
-
         # version validation
-        if (
-            cached["embedding_version"]
-            == settings.EMBEDDING_VERSION
-        ):
+        if cached["embedding_version"] == settings.EMBEDDING_VERSION:
             return cached
 
     # ---------------- REGENERATE ----------------
 
-    embedding_data = generate_embedding(
-        user.face_image_path
-    )
+    embedding_data = generate_embedding(user.face_image_path)
 
     if embedding_data is None:
         return None
@@ -93,25 +79,20 @@ def get_stored_embedding(user: User):
 # ROUTE
 # ---------------------------------------------------
 
+
 @router.post("/")
 def recognize_user(
     user_id: str = Form(...),
     image: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-
     # ---------------------------------------------------
     # FETCH USER
     # ---------------------------------------------------
 
-    user = (
-        db.query(User)
-        .filter(User.user_id == user_id)
-        .first()
-    )
+    user = db.query(User).filter(User.user_id == user_id).first()
 
     if not user or not user.face_image_path:
-
         raise HTTPException(
             status_code=404,
             detail="User not registered",
@@ -121,32 +102,19 @@ def recognize_user(
     # EMBEDDING VERSION VALIDATION
     # ---------------------------------------------------
 
-    if (
-        user.embedding_version
-        != settings.EMBEDDING_VERSION
-    ):
-
+    if user.embedding_version != settings.EMBEDDING_VERSION:
         return {
             "verified": False,
-
             "reason": "OUTDATED_EMBEDDING",
-
-            "required_version":
-                settings.EMBEDDING_VERSION,
-
-            "current_version":
-                user.embedding_version,
+            "required_version": settings.EMBEDDING_VERSION,
+            "current_version": user.embedding_version,
         }
 
     # ---------------------------------------------------
     # SAVE TEMP IMAGE
     # ---------------------------------------------------
 
-    with tempfile.NamedTemporaryFile(
-        delete=False,
-        suffix=".jpg"
-    ) as tmp:
-
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
         shutil.copyfileobj(image.file, tmp)
 
         tmp.flush()
@@ -156,93 +124,64 @@ def recognize_user(
         input_path = tmp.name
 
     try:
-
         # ---------------------------------------------------
         # GENERATE INPUT EMBEDDING
         # ---------------------------------------------------
 
-        input_embedding_data = generate_embedding(
-            input_path
-        )
+        input_embedding_data = generate_embedding(input_path)
 
         if input_embedding_data is None:
-
             return {
                 "verified": False,
                 "reason": "NO_FACE_DETECTED",
             }
 
-        input_embedding = (
-            input_embedding_data["embedding"]
-        )
+        input_embedding = input_embedding_data["embedding"]
 
         # ---------------------------------------------------
         # LOAD STORED EMBEDDING
         # ---------------------------------------------------
 
-        stored_embedding_data = (
-            get_stored_embedding(user)
-        )
+        stored_embedding_data = get_stored_embedding(user)
 
         if stored_embedding_data is None:
-
             raise HTTPException(
                 status_code=400,
                 detail="Stored face invalid",
             )
 
-        stored_embedding = (
-            stored_embedding_data["embedding"]
-        )
+        stored_embedding = stored_embedding_data["embedding"]
 
         # ---------------------------------------------------
         # COMPARE
         # ---------------------------------------------------
 
-        distance = cosine_distance(
-            input_embedding,
-            stored_embedding
-        )
+        distance = cosine_distance(input_embedding, stored_embedding)
 
-        verified = bool(
-            distance <= THRESHOLD
-        )
+        verified = bool(distance <= THRESHOLD)
 
         # ---------------------------------------------------
         # RESPONSE
         # ---------------------------------------------------
 
         return {
-
             "verified": verified,
-
             "user_id": user.user_id,
-
             "distance": float(distance),
-
             "threshold": THRESHOLD,
-
-            "embedding_version":
-                settings.EMBEDDING_VERSION,
-
-            "model":
-                settings.MODEL_NAME,
+            "embedding_version": settings.EMBEDDING_VERSION,
+            "model": settings.MODEL_NAME,
         }
 
     except HTTPException:
         raise
 
     except Exception as e:
-
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Face verification failed. "
-                f"Internal error: {str(e)}"
-            ),
+            detail=(f"Face verification failed. Internal error: {str(e)}"),
         )
 
     finally:
-
         if os.path.exists(input_path):
             os.remove(input_path)

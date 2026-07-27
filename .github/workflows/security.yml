@@ -12,20 +12,33 @@ on:
       - develop
 
   schedule:
+    # Every Monday at 02:30 UTC
     - cron: "30 2 * * 1"
 
   workflow_dispatch:
 
+# ============================================================
+# Global Permissions
+# ============================================================
+
 permissions:
   contents: read
+
+# ============================================================
+# Concurrency
+# ============================================================
 
 concurrency:
   group: security-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PYTHONUNBUFFERED: "1"
+  NODE_ENV: production
+
 jobs:
   # ==========================================================
-  # Python Dependency Audit
+  # Backend Dependency Audit
   # ==========================================================
 
   backend-audit:
@@ -33,14 +46,30 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    defaults:
+      run:
+        shell: bash
+
     steps:
+      # ------------------------------------------------------
+      # Repository
+      # ------------------------------------------------------
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # ------------------------------------------------------
+      # Python
+      # ------------------------------------------------------
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+
+      # ------------------------------------------------------
+      # uv
+      # ------------------------------------------------------
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -50,16 +79,24 @@ jobs:
             backend/uv.lock
             backend/pyproject.toml
 
+      # ------------------------------------------------------
+      # Dependencies
+      # ------------------------------------------------------
+
       - name: Install Backend Dependencies
         working-directory: backend
         run: uv sync --frozen
+
+      # ------------------------------------------------------
+      # Dependency Audit
+      # ------------------------------------------------------
 
       - name: Audit Python Dependencies
         working-directory: backend
         run: uvx pip-audit
 
   # ==========================================================
-  # npm Dependency Audit
+  # Frontend Dependency Audit
   # ==========================================================
 
   frontend-audit:
@@ -67,9 +104,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    defaults:
+      run:
+        shell: bash
+
     steps:
+      # ------------------------------------------------------
+      # Repository
+      # ------------------------------------------------------
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # ------------------------------------------------------
+      # Node
+      # ------------------------------------------------------
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -78,16 +127,24 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # ------------------------------------------------------
+      # Dependencies
+      # ------------------------------------------------------
+
       - name: Install Frontend Dependencies
         working-directory: frontend
         run: npm ci
+
+      # ------------------------------------------------------
+      # Dependency Audit
+      # ------------------------------------------------------
 
       - name: Audit npm Dependencies
         working-directory: frontend
         run: npm audit --audit-level=high
 
   # ==========================================================
-  # Trivy Repository Scan
+  # Trivy Filesystem Scan
   # ==========================================================
 
   trivy:
@@ -100,11 +157,19 @@ jobs:
       security-events: write
 
     steps:
+      # ------------------------------------------------------
+      # Repository
+      # ------------------------------------------------------
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Run Trivy
-        uses: aquasecurity/trivy-action@master
+      # ------------------------------------------------------
+      # SARIF Scan
+      # ------------------------------------------------------
+
+      - name: Run Trivy SARIF Scan
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: fs
           scan-ref: .
@@ -113,11 +178,29 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
 
+      # ------------------------------------------------------
+      # GitHub Security Upload
+      # ------------------------------------------------------
+
       - name: Upload Trivy Results
         if: always() && hashFiles('trivy-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
+
+      # ------------------------------------------------------
+      # Security Gate
+      # ------------------------------------------------------
+
+      - name: Run Trivy Security Gate
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
 
   # ==========================================================
   # Secret Scanning
@@ -128,13 +211,78 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    permissions:
+      contents: read
+
     steps:
+      # ------------------------------------------------------
+      # Full Git History
+      # ------------------------------------------------------
+
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # ------------------------------------------------------
+      # Gitleaks
+      # ------------------------------------------------------
+
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==========================================================
+  # Security Summary
+  # ==========================================================
+
+  summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+
+    if: always()
+
+    needs:
+      - backend-audit
+      - frontend-audit
+      - trivy
+      - secrets
+
+    steps:
+      # ------------------------------------------------------
+      # GitHub Summary
+      # ------------------------------------------------------
+
+      - name: Generate Security Summary
+        run: |
+          {
+            echo "# VeriFace AI — Security Summary"
+            echo
+            echo "| Security Check | Result |"
+            echo "| --- | --- |"
+            echo "| Python Dependencies | ${{ needs.backend-audit.result }} |"
+            echo "| npm Dependencies | ${{ needs.frontend-audit.result }} |"
+            echo "| Trivy Filesystem | ${{ needs.trivy.result }} |"
+            echo "| Secret Scanning | ${{ needs.secrets.result }} |"
+            echo
+            echo "**Branch:** \`${{ github.ref_name }}\`"
+            echo
+            echo "**Commit:** \`${{ github.sha }}\`"
+            echo
+            echo "**Triggered by:** \`${{ github.event_name }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ------------------------------------------------------
+      # Final Security Gate
+      # ------------------------------------------------------
+
+      - name: Verify Security Checks
+        if: |
+          needs.backend-audit.result != 'success' ||
+          needs.frontend-audit.result != 'success' ||
+          needs.trivy.result != 'success' ||
+          needs.secrets.result != 'success'
+        run: |
+          echo "One or more security checks failed."
+          exit 1
