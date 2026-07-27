@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import {
     listClassrooms,
     createClassroom,
     deleteClassroom,
 } from "../api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useAuth } from "../auth/AuthContext";
 
 

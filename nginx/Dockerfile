@@ -7,13 +7,17 @@ FROM node:22-alpine AS builder
 
 WORKDIR /frontend
 
+# Install dependencies first for better Docker layer caching
 COPY frontend/package*.json ./
 
 RUN npm ci
 
+# Copy frontend source
 COPY frontend/ .
 
+# Build production React application
 RUN npm run build
+
 
 # ==========================================================
 # Stage 2
@@ -22,15 +26,39 @@ RUN npm run build
 
 FROM nginx:1.28-alpine
 
-# Remove default content
-RUN rm -rf /usr/share/nginx/html/*
+# ----------------------------------------------------------
+# Prepare Nginx directories for non-root execution
+# ----------------------------------------------------------
 
-# Copy nginx configuration
+RUN rm -rf /usr/share/nginx/html/* \
+    && mkdir -p /var/cache/nginx \
+    && mkdir -p /var/run \
+    && mkdir -p /tmp/nginx \
+    && chown -R nginx:nginx /var/cache/nginx \
+    && chown -R nginx:nginx /var/run \
+    && chown -R nginx:nginx /tmp/nginx \
+    && chown -R nginx:nginx /usr/share/nginx/html
+
+# ----------------------------------------------------------
+# Nginx configuration
+# ----------------------------------------------------------
+
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 
-# Copy React build
-COPY --from=builder /frontend/dist /usr/share/nginx/html
+# ----------------------------------------------------------
+# React production build
+# ----------------------------------------------------------
 
-EXPOSE 80
+COPY --from=builder --chown=nginx:nginx \
+    /frontend/dist /usr/share/nginx/html
 
-CMD ["nginx","-g","daemon off;"]
+# ----------------------------------------------------------
+# Security
+# ----------------------------------------------------------
+
+USER nginx
+
+# Nginx runs internally on unprivileged port 8000
+EXPOSE 8000
+
+CMD ["nginx", "-g", "daemon off;"]

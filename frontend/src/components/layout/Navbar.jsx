@@ -1,6 +1,6 @@
 // src/components/layout/Navbar.jsx
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useClassroomContext } from "../../context/ClassroomContext";
 import { useAuth } from "../../auth/AuthContext";
 

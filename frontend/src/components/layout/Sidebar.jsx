@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import { useClassroomContext } from "../../context/ClassroomContext";
 import { useAuth } from "../../auth/AuthContext";
 
