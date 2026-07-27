@@ -2,8 +2,6 @@ from core.security import get_password_hash
 from db.models import User, UserRole
 
 
-
-
 def get_admin_token(client, db):
     admin = User(
         user_id="ADMIN1",
@@ -24,8 +22,6 @@ def get_admin_token(client, db):
 
     assert res.status_code == 200
     return res.json()["access_token"]
-
-
 
 
 def test_register_user_requires_admin(client, db):
