@@ -13,14 +13,20 @@ def test_admin_login_success(client, db):
     db.commit()
 
     res = client.post(
-        "/auth/login",
-        json={"user_id": "ADMIN1", "password": "secret"},
+        "/auth/login/",
+        data={
+            "username": "ADMIN1",
+            "password": "secret",
+        },
     )
 
     assert res.status_code == 200
+
     data = res.json()
+
     assert "access_token" in data
-    assert data["role"] == "admin"
+    assert data["token_type"] == "bearer"
+    assert data["role"] == "ADMIN"
 
 
 def test_student_cannot_login(client, db):
@@ -33,8 +39,12 @@ def test_student_cannot_login(client, db):
     db.commit()
 
     res = client.post(
-        "/auth/login",
-        json={"user_id": "STU1", "password": "any"},
+        "/auth/login/",
+        data={
+            "username": "STU1",
+            "password": "any",
+        },
     )
 
     assert res.status_code == 403
+    assert res.json()["detail"] == "Admin access only"
