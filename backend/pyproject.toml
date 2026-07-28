@@ -18,33 +18,28 @@ dependencies = [
     # Web / API
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.29.0",
-
     # AI / Computer Vision
     "deepface>=0.0.92",
     "opencv-python>=4.9.0.80",
     "numpy>=1.26.0",
     "pandas>=2.2.0",
     "tf-keras>=2.20.1",
-
     # Configuration / Validation
     "pydantic>=2.6.0",
     "pydantic-settings>=2.2.1",
     "python-dotenv>=1.0.1",
-
     # Database
     "sqlalchemy>=2.0.25",
     "alembic>=1.18.4",
     "psycopg[binary]>=3.3.4",
-
     # Authentication / Security
     "passlib[argon2,bcrypt]>=1.7.4",
     "python-jose[cryptography]>=3.5.0",
-
     # API Utilities
     "python-multipart>=0.0.9",
-
     # Logging
     "loguru>=0.7.2",
+    "pytz>=2026.3.post1",
 ]
 
 # ==========================================================
