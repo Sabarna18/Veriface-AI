@@ -3,7 +3,7 @@ name = "face-attendance-system-backend"
 version = "0.1.0"
 description = "AI-powered Face Recognition Attendance System using FastAPI and DeepFace"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 license = { text = "MIT" }
 
 authors = [
@@ -15,49 +15,35 @@ authors = [
 # ==========================================================
 
 dependencies = [
-    # ------------------------------------------------------
     # Web / API
-    # ------------------------------------------------------
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.29.0",
 
-    # ------------------------------------------------------
     # AI / Computer Vision
-    # ------------------------------------------------------
     "deepface>=0.0.92",
     "opencv-python>=4.9.0.80",
     "numpy>=1.26.0",
     "pandas>=2.2.0",
     "tf-keras>=2.20.1",
 
-    # ------------------------------------------------------
     # Configuration / Validation
-    # ------------------------------------------------------
     "pydantic>=2.6.0",
     "pydantic-settings>=2.2.1",
     "python-dotenv>=1.0.1",
 
-    # ------------------------------------------------------
     # Database
-    # ------------------------------------------------------
     "sqlalchemy>=2.0.25",
     "alembic>=1.18.4",
     "psycopg[binary]>=3.3.4",
 
-    # ------------------------------------------------------
     # Authentication / Security
-    # ------------------------------------------------------
     "passlib[argon2,bcrypt]>=1.7.4",
     "python-jose[cryptography]>=3.5.0",
 
-    # ------------------------------------------------------
     # API Utilities
-    # ------------------------------------------------------
     "python-multipart>=0.0.9",
 
-    # ------------------------------------------------------
     # Logging
-    # ------------------------------------------------------
     "loguru>=0.7.2",
 ]
 
@@ -68,15 +54,10 @@ dependencies = [
 [project.optional-dependencies]
 
 dev = [
-    # Testing
     "pytest>=9.1.1",
     "httpx>=0.28.1",
-
-    # Linting / Formatting
     "ruff>=0.16.0",
     "black>=26.5.1",
-
-    # Static Type Checking
     "mypy>=2.3.0",
 ]
 
@@ -95,7 +76,7 @@ addopts = "-ra"
 
 [tool.black]
 line-length = 88
-target-version = ["py310"]
+target-version = ["py313"]
 
 # ==========================================================
 # Ruff
@@ -103,13 +84,13 @@ target-version = ["py310"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [
-    "E",  # pycodestyle errors
-    "F",  # Pyflakes
-    "I",  # import sorting
+    "E",
+    "F",
+    "I",
 ]
 
 # ==========================================================
@@ -117,7 +98,7 @@ select = [
 # ==========================================================
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.13"
 ignore_missing_imports = true
 warn_unused_configs = true
 check_untyped_defs = true
