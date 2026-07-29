@@ -46,17 +46,10 @@ services:
       - ./backend/.env
 
     environment:
-      # ------------------------------------------------------
-      # Application data directory inside container
-      # ------------------------------------------------------
       DATA_DIR: /app/data
 
-      # ------------------------------------------------------
-      # Legacy SQLite -> PostgreSQL migration
-      # TEMPORARY: Disable after successful migration
-      # ------------------------------------------------------
+      # Legacy migration must not run during normal startup.
       MIGRATE_LEGACY_DB: "false"
-      LEGACY_DB_PATH: /app/legacy/attendance.db
 
     depends_on:
       postgres:
@@ -66,51 +59,29 @@ services:
       - "8002"
 
     volumes:
-      # ------------------------------------------------------
-      # Persistent application data
-      # Face images, embeddings, attendance files
-      # ------------------------------------------------------
+      # Application data
       - backend_data:/app/data
 
-      # ------------------------------------------------------
       # Application-managed ML models
-      # ------------------------------------------------------
       - backend_models:/app/models
 
-      # ------------------------------------------------------
       # DeepFace model weights
-      #
-      # ArcFace and other DeepFace model weights are
-      # downloaded here by DeepFace.
-      #
-      # Persisting this directory prevents models from being
-      # downloaded again when the container is recreated.
-      # ------------------------------------------------------
       - deepface_weights:/root/.deepface/weights
 
-      # ------------------------------------------------------
       # Application logs
-      # ------------------------------------------------------
       - backend_logs:/app/logs
-
-      # ------------------------------------------------------
-      # Legacy SQLite database
-      # TEMPORARY: Used only for PostgreSQL migration
-      # Mounted read-only to protect original database
-      # ------------------------------------------------------
-      - ./backend/attendance.db:/app/legacy/attendance.db:ro
 
     healthcheck:
       test:
         [
           "CMD",
-          "python",
+          "/app/.venv/bin/python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8002/health/')",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/', timeout=5)",
         ]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 60s
 
     networks:
@@ -137,11 +108,11 @@ services:
       - "80:8000"
 
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8000/"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 10s
+      retries: 5
+      start_period: 20s
 
     networks:
       - veriface-network
@@ -151,20 +122,14 @@ services:
 # ==========================================================
 
 volumes:
-  # PostgreSQL persistent database
   postgres_data:
 
-  # Face images, embeddings, attendance files
   backend_data:
 
-  # Application-managed ML model cache
   backend_models:
 
-  # DeepFace model weights
-  # Includes ArcFace weights downloaded by DeepFace
   deepface_weights:
 
-  # Backend application logs
   backend_logs:
 
 # ==========================================================

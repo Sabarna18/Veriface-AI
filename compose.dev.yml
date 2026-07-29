@@ -1,176 +1,157 @@
-name: veriface-ai
+# ==========================================================
+# VeriFace AI - Local Development Overrides
+# ==========================================================
+#
+# Usage:
+#
+#   docker compose \
+#     -f compose.yml \
+#     -f compose.dev.yml \
+#     up -d --build
+#
+# This file extends compose.yml for local development.
+# It is NOT intended for CI or production deployment.
+#
+# ==========================================================
 
 services:
   # ==========================================================
-  # PostgreSQL
+  # PostgreSQL - Development
   # ==========================================================
 
   postgres:
-    image: postgres:17-alpine
-    container_name: veriface-postgres
+    # --------------------------------------------------------
+    # Expose PostgreSQL to the host machine
+    #
+    # Host:
+    #   localhost:5432
+    #
+    # Docker network:
+    #   postgres:5432
+    # --------------------------------------------------------
 
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
-    networks:
-      - veriface-network
+    ports:
+      - "5432:5432"
 
   # ==========================================================
-  # FastAPI Backend
+  # FastAPI Backend - Development
   # ==========================================================
 
   backend:
-    container_name: veriface-backend
-
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-
-    restart: unless-stopped
-
-    env_file:
-      - ./backend/.env
+    # --------------------------------------------------------
+    # Development Environment
+    # --------------------------------------------------------
 
     environment:
-      # ------------------------------------------------------
-      # Application data directory inside container
-      # ------------------------------------------------------
+      ENVIRONMENT: development
+
+      # Never automatically migrate the legacy SQLite
+      # database during normal development startup.
+      MIGRATE_LEGACY_DB: "false"
+
+      # Application data inside container
       DATA_DIR: /app/data
 
-      # ------------------------------------------------------
-      # Legacy SQLite -> PostgreSQL migration
-      # TEMPORARY: Disable after successful migration
-      # ------------------------------------------------------
-      MIGRATE_LEGACY_DB: "true"
-      LEGACY_DB_PATH: /app/legacy/attendance.db
+    # --------------------------------------------------------
+    # Expose FastAPI directly to host
+    #
+    # Host:
+    #   http://localhost:8002
+    #
+    # Docker network:
+    #   http://backend:8002
+    # --------------------------------------------------------
 
-    depends_on:
-      postgres:
-        condition: service_healthy
+    ports:
+      - "8002:8002"
 
-    expose:
-      - "8002"
+    # --------------------------------------------------------
+    # Development Volumes
+    # --------------------------------------------------------
 
     volumes:
-      # ------------------------------------------------------
+      # Application source code
+      #
+      # Changes made locally become immediately available
+      # inside the backend container.
+      - ./backend/src:/app/src
+
+      # Alembic migrations
+      - ./backend/migrations:/app/migrations
+
+      # Alembic configuration
+      - ./backend/alembic.ini:/app/alembic.ini:ro
+
       # Persistent application data
-      # Face images, embeddings, attendance files
-      # ------------------------------------------------------
       - backend_data:/app/data
 
-      # ------------------------------------------------------
       # Application-managed ML models
-      # ------------------------------------------------------
       - backend_models:/app/models
 
-      # ------------------------------------------------------
       # DeepFace model weights
-      #
-      # ArcFace and other DeepFace model weights are
-      # downloaded here by DeepFace.
-      #
-      # Persisting this directory prevents models from being
-      # downloaded again when the container is recreated.
-      # ------------------------------------------------------
       - deepface_weights:/root/.deepface/weights
 
-      # ------------------------------------------------------
-      # Application logs
-      # ------------------------------------------------------
+      # Backend logs
       - backend_logs:/app/logs
 
-      # ------------------------------------------------------
-      # Legacy SQLite database
-      # TEMPORARY: Used only for PostgreSQL migration
-      # Mounted read-only to protect original database
-      # ------------------------------------------------------
-      - ./backend/attendance.db:/app/legacy/attendance.db:ro
-
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8002/health/')",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-    networks:
-      - veriface-network
-
   # ==========================================================
-  # Nginx + React
+  # Nginx + React - Development
   # ==========================================================
 
   web:
-    container_name: veriface-web
-
-    build:
-      context: .
-      dockerfile: nginx/Dockerfile
-
-    restart: unless-stopped
-
-    depends_on:
-      backend:
-        condition: service_healthy
+    # --------------------------------------------------------
+    # Development Web Port
+    #
+    # Host:
+    #   http://localhost:8080
+    #
+    # Container:
+    #   nginx:8000
+    #
+    # Using 8080 avoids requiring privileged port 80 and
+    # reduces conflicts with locally installed web servers.
+    # --------------------------------------------------------
 
     ports:
-      - "80:80"
-
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-    networks:
-      - veriface-network
+      - "8080:8000"
 
 # ==========================================================
-# Volumes
+# Development Notes
 # ==========================================================
-
-volumes:
-  # PostgreSQL persistent database
-  postgres_data:
-
-  # Face images, embeddings, attendance files
-  backend_data:
-
-  # Application-managed ML model cache
-  backend_models:
-
-  # DeepFace model weights
-  # Includes ArcFace weights downloaded by DeepFace
-  deepface_weights:
-
-  # Backend application logs
-  backend_logs:
-
+#
+# PostgreSQL:
+#
+#   Host access:
+#       localhost:5432
+#
+#   Container access:
+#       postgres:5432
+#
+#
+# FastAPI:
+#
+#   Direct host access:
+#       http://localhost:8002
+#
+#   Health endpoint:
+#       http://localhost:8002/health/
+#
+#
+# React + Nginx:
+#
+#       http://localhost:8080
+#
+#
+# API through Nginx:
+#
+#       http://localhost:8080/api/...
+#
+#
+# Internal Docker communication MUST continue using:
+#
+#       backend:8002
+#       postgres:5432
+#
+# Do NOT use localhost for communication between containers.
+#
 # ==========================================================
-# Networks
-# ==========================================================
-
-networks:
-  veriface-network:
-    driver: bridge
