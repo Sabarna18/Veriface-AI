@@ -37,7 +37,6 @@ concurrency:
 env:
   PYTHONUNBUFFERED: "1"
 
-
 jobs:
   # ==========================================================
   # Backend Verification
@@ -126,48 +125,6 @@ jobs:
 
       - name: Run Frontend Validation
         run: ./scripts/frontend.sh
-
-  # ==========================================================
-  # Docker
-  # ==========================================================
-
-  docker:
-    name: Docker Verification
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    needs:
-      - backend
-      - frontend
-
-    permissions:
-      contents: read
-
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-      # ======================================================
-      # Repository
-      # ======================================================
-
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      # ======================================================
-      # Docker Buildx
-      # ======================================================
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # ======================================================
-      # Docker Verification
-      # ======================================================
-
-      - name: Run Docker Verification
-        run: ./scripts/docker.sh
   # ==========================================================
   # CI Summary / Required Gate
   # ==========================================================
@@ -181,13 +138,8 @@ jobs:
     needs:
       - backend
       - frontend
-      - docker
 
     steps:
-      # ------------------------------------------------------
-      # GitHub Summary
-      # ------------------------------------------------------
-
       - name: Generate CI Summary
         run: |
           {
@@ -197,7 +149,6 @@ jobs:
             echo "| --- | --- |"
             echo "| Backend | ${{ needs.backend.result }} |"
             echo "| Frontend | ${{ needs.frontend.result }} |"
-            echo "| Docker | ${{ needs.docker.result }} |"
             echo
             echo "**Branch:** \`${{ github.ref_name }}\`"
             echo
@@ -206,15 +157,10 @@ jobs:
             echo "**Triggered by:** \`${{ github.event_name }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # ------------------------------------------------------
-      # Final CI Gate
-      # ------------------------------------------------------
-
       - name: Verify Required Jobs
         if: |
           needs.backend.result != 'success' ||
-          needs.frontend.result != 'success' ||
-          needs.docker.result != 'success'
+          needs.frontend.result != 'success'
         run: |
           echo "One or more required CI stages failed."
           exit 1

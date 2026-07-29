@@ -55,7 +55,7 @@ services:
       # Legacy SQLite -> PostgreSQL migration
       # TEMPORARY: Disable after successful migration
       # ------------------------------------------------------
-      MIGRATE_LEGACY_DB: "true"
+      MIGRATE_LEGACY_DB: "false"
       LEGACY_DB_PATH: /app/legacy/attendance.db
 
     depends_on:
