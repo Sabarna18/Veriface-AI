@@ -1,0 +1,100 @@
+name: Docker Verification
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "feature/**"
+      - "fix/**"
+
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "nginx/**"
+      - "scripts/docker.sh"
+      - "compose.yaml"
+      - ".github/workflows/docker.yml"
+
+  pull_request:
+    branches:
+      - main
+      - develop
+
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "nginx/**"
+      - "scripts/docker.sh"
+      - "compose.yaml"
+      - ".github/workflows/docker.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSE_FILE: compose.yaml
+  HEALTH_TIMEOUT: "180"
+
+jobs:
+  docker-verification:
+    name: Docker Stack Verification
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # ======================================================
+      # Checkout
+      # ======================================================
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # ======================================================
+      # Docker
+      # ======================================================
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ======================================================
+      # Verification
+      # ======================================================
+
+      - name: Make Docker Script Executable
+        run: chmod +x scripts/docker.sh
+
+      - name: Run Docker Verification
+        run: ./scripts/docker.sh
+
+      # ======================================================
+      # Summary
+      # ======================================================
+
+      - name: Generate Docker Summary
+        if: always()
+        run: |
+          {
+            echo "# VeriFace AI — Docker Verification"
+            echo
+            echo "| Property | Value |"
+            echo "| --- | --- |"
+            echo "| Repository | \`${{ github.repository }}\` |"
+            echo "| Branch | \`${{ github.ref_name }}\` |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo "| Compose | \`${{ env.COMPOSE_FILE }}\` |"
+            echo
+            echo "Docker stack verification completed."
+          } >> "$GITHUB_STEP_SUMMARY"

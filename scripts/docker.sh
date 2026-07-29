@@ -1,131 +1,139 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
-
 # ==========================================================
-# VeriFace AI — Docker Verification
+# VeriFace AI - Docker Stack Verification
 # ==========================================================
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+set -Eeuo pipefail
 
-ROOT_ENV="${ROOT_DIR}/.env"
-BACKEND_ENV="${ROOT_DIR}/backend/.env"
-BACKEND_ENV_SAMPLE="${ROOT_DIR}/backend/.env.sample"
-
-cd "${ROOT_DIR}"
+COMPOSE_FILE="${COMPOSE_FILE:-compose.yaml}"
+HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-120}"
+POLL_INTERVAL="${POLL_INTERVAL:-5}"
 
 echo "=========================================="
-echo " VeriFace AI — Docker Verification"
+echo " VeriFace AI - Docker Verification"
 echo "=========================================="
 
-# ==========================================================
-# Validate required files
-# ==========================================================
-
-echo
-echo "==> Checking required Docker files"
-
-required_files=(
-    "compose.yml"
-    "backend/Dockerfile"
-    "nginx/Dockerfile"
-    "backend/.env.sample"
-)
-
-for file in "${required_files[@]}"; do
-    if [[ ! -f "${file}" ]]; then
-        echo "ERROR: Required file not found: ${file}"
-        exit 1
-    fi
-done
-
-echo "Required Docker files found."
-
-# ==========================================================
-# Preserve existing local environment
-# ==========================================================
-#
-# In CI these files normally do not exist.
-#
-# Locally, however, we must NOT overwrite the developer's
-# existing .env files.
-# ==========================================================
-
-ROOT_ENV_CREATED=false
-BACKEND_ENV_CREATED=false
+# ----------------------------------------------------------
+# Cleanup
+# ----------------------------------------------------------
 
 cleanup() {
-    echo
-    echo "==> Cleaning temporary CI environment"
+    exit_code=$?
 
-    if [[ "${ROOT_ENV_CREATED}" == "true" ]]; then
-        rm -f "${ROOT_ENV}"
+    echo ""
+    echo "=========================================="
+    echo " Docker Diagnostics"
+    echo "=========================================="
+
+    docker compose -f "$COMPOSE_FILE" ps || true
+
+    if [[ "$exit_code" -ne 0 ]]; then
+        echo ""
+        echo "Container logs:"
+        docker compose -f "$COMPOSE_FILE" logs --no-color || true
     fi
 
-    if [[ "${BACKEND_ENV_CREATED}" == "true" ]]; then
-        rm -f "${BACKEND_ENV}"
-    fi
+    echo ""
+    echo "Stopping verification stack..."
+
+    docker compose -f "$COMPOSE_FILE" down \
+        --volumes \
+        --remove-orphans || true
+
+    exit "$exit_code"
 }
 
 trap cleanup EXIT
 
-# ==========================================================
-# Create Compose environment
-# ==========================================================
 
-if [[ ! -f "${ROOT_ENV}" ]]; then
-    echo
-    echo "==> Creating temporary Compose environment"
+# ----------------------------------------------------------
+# 1. Environment
+# ----------------------------------------------------------
 
-    cat > "${ROOT_ENV}" <<'EOF'
-POSTGRES_USER=veriface
-POSTGRES_PASSWORD=veriface_password
-POSTGRES_DB=veriface_db
-EOF
+echo ""
+echo "[1/6] Checking Docker environment"
 
-    ROOT_ENV_CREATED=true
-else
-    echo
-    echo "==> Existing root .env detected — preserving it"
+docker --version
+docker compose version
+
+docker info > /dev/null
+
+echo "Docker environment OK"
+
+
+# ----------------------------------------------------------
+# 2. Compose Validation
+# ----------------------------------------------------------
+
+echo ""
+echo "[2/6] Validating Docker Compose configuration"
+
+docker compose -f "$COMPOSE_FILE" config --quiet
+
+echo "Compose configuration valid"
+
+
+# ----------------------------------------------------------
+# 3. Build Images
+# ----------------------------------------------------------
+
+echo ""
+echo "[3/6] Building application images"
+
+docker compose -f "$COMPOSE_FILE" build \
+    --pull
+
+echo "Docker images built successfully"
+
+
+# ----------------------------------------------------------
+# 4. Start Stack
+# ----------------------------------------------------------
+
+echo ""
+echo "[4/6] Starting Docker stack"
+
+docker compose -f "$COMPOSE_FILE" up \
+    --detach \
+    --wait \
+    --wait-timeout "$HEALTH_TIMEOUT"
+
+echo "Docker stack started"
+
+
+# ----------------------------------------------------------
+# 5. Verify Containers
+# ----------------------------------------------------------
+
+echo ""
+echo "[5/6] Verifying container state"
+
+docker compose -f "$COMPOSE_FILE" ps
+
+failed_services="$(
+    docker compose -f "$COMPOSE_FILE" ps \
+        --status exited \
+        --services
+)"
+
+if [[ -n "$failed_services" ]]; then
+    echo "One or more services exited unexpectedly:"
+    echo "$failed_services"
+    exit 1
 fi
 
-# ==========================================================
-# Create backend environment
-# ==========================================================
+echo "Containers are running"
 
-if [[ ! -f "${BACKEND_ENV}" ]]; then
-    echo
-    echo "==> Creating temporary backend environment"
 
-    cp "${BACKEND_ENV_SAMPLE}" "${BACKEND_ENV}"
+# ----------------------------------------------------------
+# 6. Final Verification
+# ----------------------------------------------------------
 
-    BACKEND_ENV_CREATED=true
-else
-    echo
-    echo "==> Existing backend/.env detected — preserving it"
-fi
+echo ""
+echo "[6/6] Docker stack verification complete"
 
-# ==========================================================
-# Validate Docker Compose
-# ==========================================================
-
-echo
-echo "==> Validating Docker Compose configuration"
-
-docker compose config --quiet
-
-echo "Docker Compose configuration is valid."
-
-# ==========================================================
-# Build images
-# ==========================================================
-
-echo
-echo "==> Building Docker images"
-
-docker compose build
-
-echo
+echo ""
 echo "=========================================="
-echo " Docker verification passed"
+echo " Docker Verification Passed"
 echo "=========================================="

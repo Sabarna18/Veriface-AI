@@ -15,6 +15,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+ENV PATH="/app/.venv/bin:$PATH"
+
 # ----------------------------------------------------------
 # System Dependencies
 # ----------------------------------------------------------

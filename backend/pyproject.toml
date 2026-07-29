@@ -20,7 +20,7 @@ dependencies = [
     "uvicorn[standard]>=0.29.0",
     # AI / Computer Vision
     "deepface>=0.0.92",
-    "opencv-python>=4.9.0.80",
+    "opencv-python>=4.9.0.80,<5",
     "numpy>=1.26.0",
     "pandas>=2.2.0",
     "tf-keras>=2.20.1",
