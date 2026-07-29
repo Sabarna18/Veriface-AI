@@ -13,7 +13,7 @@ on:
       - "frontend/**"
       - "nginx/**"
       - "scripts/docker.sh"
-      - "compose.yaml"
+      - "compose.yml"
       - ".github/workflows/docker.yml"
 
   pull_request:
@@ -26,7 +26,7 @@ on:
       - "frontend/**"
       - "nginx/**"
       - "scripts/docker.sh"
-      - "compose.yaml"
+      - "compose.yml"
       - ".github/workflows/docker.yml"
 
   workflow_dispatch:
@@ -47,7 +47,6 @@ jobs:
     name: Docker Stack Verification
 
     runs-on: ubuntu-latest
-
     timeout-minutes: 30
 
     defaults:
@@ -63,14 +62,14 @@ jobs:
         uses: actions/checkout@v4
 
       # ======================================================
-      # Docker
+      # Docker Environment
       # ======================================================
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       # ======================================================
-      # Verification
+      # Docker Stack Verification
       # ======================================================
 
       - name: Make Docker Script Executable
@@ -80,7 +79,7 @@ jobs:
         run: ./scripts/docker.sh
 
       # ======================================================
-      # Summary
+      # Workflow Summary
       # ======================================================
 
       - name: Generate Docker Summary
@@ -96,5 +95,5 @@ jobs:
             echo "| Commit | \`${{ github.sha }}\` |"
             echo "| Compose | \`${{ env.COMPOSE_FILE }}\` |"
             echo
-            echo "Docker stack verification completed."
+            echo "Docker stack verification workflow completed."
           } >> "$GITHUB_STEP_SUMMARY"
