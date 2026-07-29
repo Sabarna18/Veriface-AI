@@ -39,7 +39,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  COMPOSE_FILE: compose.yaml
+  COMPOSE_FILE: compose.yml
   HEALTH_TIMEOUT: "180"
 
 jobs:

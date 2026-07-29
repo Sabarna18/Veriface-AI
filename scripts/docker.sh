@@ -6,7 +6,7 @@
 
 set -Eeuo pipefail
 
-COMPOSE_FILE="${COMPOSE_FILE:-compose.yaml}"
+COMPOSE_FILE="${COMPOSE_FILE:-compose.yml}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-120}"
 POLL_INTERVAL="${POLL_INTERVAL:-5}"
 
