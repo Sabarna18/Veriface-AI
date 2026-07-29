@@ -7,14 +7,15 @@
 set -Eeuo pipefail
 
 COMPOSE_FILE="${COMPOSE_FILE:-compose.yml}"
-HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-180}"
+HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-240}"
+POLL_INTERVAL="${POLL_INTERVAL:-5}"
 
 BACKEND_ENV_FILE="backend/.env"
 CI_ENV_CREATED=false
 
 
 # ==========================================================
-# Logging Helpers
+# Helpers
 # ==========================================================
 
 log_section() {
@@ -26,57 +27,144 @@ log_section() {
 
 
 # ==========================================================
-# Cleanup & Diagnostics
+# Diagnostics
+# ==========================================================
+
+show_health_diagnostics() {
+
+    log_section "Container Status"
+
+    docker compose -f "$COMPOSE_FILE" ps || true
+
+    echo ""
+
+    for service in $(docker compose -f "$COMPOSE_FILE" config --services); do
+
+        container_id="$(
+            docker compose \
+                -f "$COMPOSE_FILE" \
+                ps \
+                -q \
+                "$service"
+        )"
+
+        echo "--- $service ---"
+
+        if [[ -z "$container_id" ]]; then
+            echo "Container not found"
+            echo ""
+            continue
+        fi
+
+        docker inspect \
+            --format \
+            'State={{.State.Status}} Health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} ExitCode={{.State.ExitCode}}' \
+            "$container_id" || true
+
+        echo ""
+    done
+}
+
+
+# ==========================================================
+# Cleanup
 # ==========================================================
 
 cleanup() {
+
     exit_code=$?
 
     trap - EXIT
 
-    log_section "Docker Diagnostics"
-
-    docker compose -f "$COMPOSE_FILE" ps || true
-
     if [[ "$exit_code" -ne 0 ]]; then
+
+        log_section "Docker Verification Failed"
+
+        show_health_diagnostics
 
         log_section "Backend Logs"
 
-        docker compose -f "$COMPOSE_FILE" logs \
+        docker compose \
+            -f "$COMPOSE_FILE" \
+            logs \
             --no-color \
             --tail=200 \
             backend || true
 
         log_section "PostgreSQL Logs"
 
-        docker compose -f "$COMPOSE_FILE" logs \
+        docker compose \
+            -f "$COMPOSE_FILE" \
+            logs \
             --no-color \
             --tail=100 \
             postgres || true
 
         log_section "Web Logs"
 
-        docker compose -f "$COMPOSE_FILE" logs \
+        docker compose \
+            -f "$COMPOSE_FILE" \
+            logs \
             --no-color \
             --tail=100 \
             web || true
+
+        log_section "Healthcheck Logs"
+
+        for service in $(docker compose -f "$COMPOSE_FILE" config --services); do
+
+            container_id="$(
+                docker compose \
+                    -f "$COMPOSE_FILE" \
+                    ps \
+                    -q \
+                    "$service"
+            )"
+
+            if [[ -n "$container_id" ]]; then
+
+                echo ""
+                echo "--- $service ---"
+
+                docker inspect \
+                    --format \
+                    '{{if .State.Health}}{{range .State.Health.Log}}{{println .End "exit=" .ExitCode .Output}}{{end}}{{else}}No healthcheck configured{{end}}' \
+                    "$container_id" || true
+
+            fi
+
+        done
+
     fi
+
+
+    # ------------------------------------------------------
+    # Cleanup Docker resources
+    # ------------------------------------------------------
 
     log_section "Docker Cleanup"
 
-    docker compose -f "$COMPOSE_FILE" down \
+    docker compose \
+        -f "$COMPOSE_FILE" \
+        down \
         --volumes \
         --remove-orphans || true
+
+
+    # ------------------------------------------------------
+    # Remove only CI-created environment
+    # ------------------------------------------------------
 
     if [[ "$CI_ENV_CREATED" == "true" ]]; then
         echo "Removing temporary CI environment file..."
         rm -f "$BACKEND_ENV_FILE"
     fi
 
+
     if [[ "$exit_code" -eq 0 ]]; then
-        echo "Docker cleanup completed."
+        echo "✓ Docker cleanup completed"
     else
-        echo "Docker verification failed with exit code: $exit_code"
+        echo "✗ Docker verification failed with exit code $exit_code"
     fi
 
     exit "$exit_code"
@@ -92,9 +180,9 @@ trap cleanup EXIT
 log_section "VeriFace AI - Docker Verification"
 
 
-# ----------------------------------------------------------
-# 1. Repository Validation
-# ----------------------------------------------------------
+# ==========================================================
+# 1. Repository
+# ==========================================================
 
 echo ""
 echo "[1/8] Validating repository structure..."
@@ -104,17 +192,22 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
     exit 1
 fi
 
-if [[ ! -d "backend" ]]; then
-    echo "ERROR: backend/ directory not found."
+if [[ ! -d backend ]]; then
+    echo "ERROR: backend directory not found"
+    exit 1
+fi
+
+if [[ ! -d frontend ]]; then
+    echo "ERROR: frontend directory not found"
     exit 1
 fi
 
 echo "✓ Repository structure valid"
 
 
-# ----------------------------------------------------------
-# 2. Docker Environment
-# ----------------------------------------------------------
+# ==========================================================
+# 2. Docker
+# ==========================================================
 
 echo ""
 echo "[2/8] Checking Docker environment..."
@@ -123,67 +216,40 @@ docker --version
 docker compose version
 
 if ! docker info >/dev/null 2>&1; then
-    echo "ERROR: Docker daemon is unavailable."
+    echo "ERROR: Docker daemon unavailable"
     exit 1
 fi
 
 echo "✓ Docker environment available"
 
 
-# ----------------------------------------------------------
-# 3. Prepare Backend Environment
-# ----------------------------------------------------------
+# ==========================================================
+# 3. Environment
+# ==========================================================
 
 echo ""
-echo "[3/8] Preparing backend environment..."
+echo "[3/8] Preparing CI environment..."
 
 if [[ ! -f "$BACKEND_ENV_FILE" ]]; then
 
-    echo "backend/.env not found."
-    echo "Generating temporary CI environment..."
+    echo "Generating temporary backend/.env"
 
     cat > "$BACKEND_ENV_FILE" <<'EOF'
 # ==========================================================
-# VeriFace AI - Docker CI Environment
-# Generated automatically by scripts/docker.sh
-# DO NOT use these values in production.
+# VeriFace AI CI Environment
+# DO NOT use these credentials in production.
 # ==========================================================
-
-# ----------------------------------------------------------
-# Application
-# ----------------------------------------------------------
 
 ENVIRONMENT=test
 
-
-# ----------------------------------------------------------
-# Authentication
-# Required by backend Docker entrypoint
-# ----------------------------------------------------------
-
 SECRET_KEY=veriface-ci-only-secret-key-not-for-production
 ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-
-# ----------------------------------------------------------
-# PostgreSQL
-# ----------------------------------------------------------
 
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=veriface
 
-
-# ----------------------------------------------------------
-# Database
-# ----------------------------------------------------------
-
 DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/veriface
-
-
-# ----------------------------------------------------------
-# Legacy Database Migration
-# ----------------------------------------------------------
 
 MIGRATE_LEGACY_DB=false
 EOF
@@ -194,14 +260,13 @@ EOF
 
 else
 
-    echo "Existing backend/.env detected."
-    echo "Using existing backend environment."
+    echo "✓ Existing backend/.env detected"
 
 fi
 
 
 # ----------------------------------------------------------
-# Export Compose Variables
+# Export variables for Compose interpolation
 # ----------------------------------------------------------
 
 set -a
@@ -211,10 +276,6 @@ source "$BACKEND_ENV_FILE"
 
 set +a
 
-
-# ----------------------------------------------------------
-# Validate Required Variables
-# ----------------------------------------------------------
 
 required_vars=(
     DATABASE_URL
@@ -228,33 +289,33 @@ required_vars=(
 for var in "${required_vars[@]}"; do
 
     if [[ -z "${!var:-}" ]]; then
-        echo "ERROR: Required environment variable is missing: $var"
+        echo "ERROR: Required variable missing: $var"
         exit 1
     fi
 
 done
 
-echo "✓ Backend environment validated"
+echo "✓ Environment validated"
 
 
-# ----------------------------------------------------------
+# ==========================================================
 # 4. Compose Validation
-# ----------------------------------------------------------
+# ==========================================================
 
 echo ""
-echo "[4/8] Validating Docker Compose configuration..."
+echo "[4/8] Validating Compose configuration..."
 
 docker compose \
     -f "$COMPOSE_FILE" \
     config \
     --quiet
 
-echo "✓ Docker Compose configuration valid"
+echo "✓ Compose configuration valid"
 
 
-# ----------------------------------------------------------
-# 5. Build Images
-# ----------------------------------------------------------
+# ==========================================================
+# 5. Build
+# ==========================================================
 
 echo ""
 echo "[5/8] Building Docker images..."
@@ -264,12 +325,12 @@ docker compose \
     build \
     --pull
 
-echo "✓ Docker images built successfully"
+echo "✓ Docker images built"
 
 
-# ----------------------------------------------------------
-# 6. Start Stack
-# ----------------------------------------------------------
+# ==========================================================
+# 6. Start
+# ==========================================================
 
 echo ""
 echo "[6/8] Starting Docker stack..."
@@ -277,41 +338,19 @@ echo "[6/8] Starting Docker stack..."
 docker compose \
     -f "$COMPOSE_FILE" \
     up \
-    --detach \
-    --wait \
-    --wait-timeout "$HEALTH_TIMEOUT"
+    --detach
 
-echo "✓ Docker stack started successfully"
+echo "✓ Docker containers created"
 
 
-# ----------------------------------------------------------
-# 7. Verify Services
-# ----------------------------------------------------------
+# ==========================================================
+# 7. Health Verification
+# ==========================================================
 
 echo ""
-echo "[7/8] Verifying Docker services..."
+echo "[7/8] Waiting for services to become healthy..."
 
-docker compose -f "$COMPOSE_FILE" ps
-
-exited_services="$(
-    docker compose \
-        -f "$COMPOSE_FILE" \
-        ps \
-        --status exited \
-        --services
-)"
-
-if [[ -n "$exited_services" ]]; then
-
-    echo ""
-    echo "ERROR: One or more services exited unexpectedly:"
-    echo "$exited_services"
-
-    exit 1
-fi
-
-
-# Check every Compose service exists in the running stack.
+start_time="$(date +%s)"
 
 expected_services="$(
     docker compose \
@@ -320,39 +359,162 @@ expected_services="$(
         --services
 )"
 
-for service in $expected_services; do
+while true; do
 
-    container_id="$(
-        docker compose \
-            -f "$COMPOSE_FILE" \
-            ps \
-            --quiet \
-            "$service"
-    )"
+    all_healthy=true
 
-    if [[ -z "$container_id" ]]; then
-        echo "ERROR: Service is not running: $service"
+    echo ""
+    echo "Service health:"
+
+    for service in $expected_services; do
+
+        container_id="$(
+            docker compose \
+                -f "$COMPOSE_FILE" \
+                ps \
+                -q \
+                "$service"
+        )"
+
+        if [[ -z "$container_id" ]]; then
+
+            echo "  ✗ $service: container missing"
+            exit 1
+
+        fi
+
+
+        state="$(
+            docker inspect \
+                --format '{{.State.Status}}' \
+                "$container_id"
+        )"
+
+
+        health="$(
+            docker inspect \
+                --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+                "$container_id"
+        )"
+
+
+        echo "  $service: state=$state health=$health"
+
+
+        # --------------------------------------------------
+        # Container exited
+        # --------------------------------------------------
+
+        if [[ "$state" == "exited" ]] ||
+           [[ "$state" == "dead" ]]; then
+
+            echo ""
+            echo "ERROR: $service exited unexpectedly"
+            exit 1
+
+        fi
+
+
+        # --------------------------------------------------
+        # Explicitly unhealthy
+        # --------------------------------------------------
+
+        if [[ "$health" == "unhealthy" ]]; then
+
+            echo ""
+            echo "ERROR: $service became unhealthy"
+
+            echo ""
+            echo "Healthcheck output:"
+
+            docker inspect \
+                --format \
+                '{{range .State.Health.Log}}{{println "exit=" .ExitCode .Output}}{{end}}' \
+                "$container_id" || true
+
+            exit 1
+
+        fi
+
+
+        # --------------------------------------------------
+        # Still starting
+        # --------------------------------------------------
+
+        if [[ "$health" == "starting" ]]; then
+            all_healthy=false
+        fi
+
+
+        # --------------------------------------------------
+        # No healthcheck
+        # --------------------------------------------------
+
+        if [[ "$health" == "none" ]] &&
+           [[ "$state" != "running" ]]; then
+            all_healthy=false
+        fi
+
+    done
+
+
+    # ------------------------------------------------------
+    # All services ready
+    # ------------------------------------------------------
+
+    if [[ "$all_healthy" == "true" ]]; then
+        break
+    fi
+
+
+    # ------------------------------------------------------
+    # Timeout
+    # ------------------------------------------------------
+
+    current_time="$(date +%s)"
+    elapsed=$((current_time - start_time))
+
+    if (( elapsed >= HEALTH_TIMEOUT )); then
+
+        echo ""
+        echo "ERROR: Docker health verification timed out"
+        echo "Timeout: ${HEALTH_TIMEOUT}s"
+
         exit 1
     fi
 
-    echo "✓ $service running"
+
+    echo "Waiting ${POLL_INTERVAL}s..."
+
+    sleep "$POLL_INTERVAL"
 
 done
 
 
-# ----------------------------------------------------------
+echo ""
+echo "✓ All Docker services healthy"
+
+
+# ==========================================================
 # 8. Final Verification
-# ----------------------------------------------------------
+# ==========================================================
 
 echo ""
-echo "[8/8] Docker stack verification complete"
+echo "[8/8] Final Docker verification..."
+
+docker compose -f "$COMPOSE_FILE" ps
 
 log_section "Docker Verification Passed"
 
 echo "Compose file : $COMPOSE_FILE"
 echo "Environment  : ${ENVIRONMENT:-test}"
+echo ""
 echo "Services:"
-docker compose -f "$COMPOSE_FILE" config --services
+
+docker compose \
+    -f "$COMPOSE_FILE" \
+    config \
+    --services
 
 echo ""
-echo "✓ VeriFace AI Docker stack is healthy"
+echo "✓ VeriFace AI Docker stack verified successfully"
