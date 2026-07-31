@@ -25,7 +25,7 @@ env/
 # ===============================
 # Environment Variables
 # ===============================
-.env
+*.env
 
 # ===============================
 # Logs
@@ -53,6 +53,7 @@ node_modules/
 dist/
 build/
 .vite/
+.vercel/
 
 # ===============================
 # OS / Editor
@@ -67,3 +68,5 @@ Thumbs.db
 # ===============================
 .pytest_cache/
 coverage/
+.vercel
+.env*
