@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -11,20 +11,30 @@ class Settings(BaseSettings):
     # ==========================================================
 
     APP_NAME: str = "VeriFace AI"
+    ENVIRONMENT: str = "development"
     DEBUG: bool = False
-    API_ROOT_PATH: str = "/api"
+    API_ROOT_PATH: str = "/api/v1"
 
     # ==========================================================
     # CORS
     # ==========================================================
 
-    CORS_ORIGINS: str = "http://localhost"
+    CORS_ORIGINS: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost",
+            "http://localhost:3000",
+            "http://localhost:5173",
+        ]
+    )
 
     # ==========================================================
     # Database
     # ==========================================================
 
-    DATABASE_URL: str = "sqlite:///./attendance.db"
+    DATABASE_URL: str = Field(
+        ...,
+        description="SQLAlchemy database connection string",
+    )
 
     # ==========================================================
     # Application Storage
@@ -78,9 +88,14 @@ class Settings(BaseSettings):
     # Authentication
     # ==========================================================
 
-    SECRET_KEY: str = "dev-secret-change-this"
+    SECRET_KEY: str = Field(
+        ...,
+        description="JWT secret key",
+    )
+
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # ==========================================================
     # Pydantic Settings
