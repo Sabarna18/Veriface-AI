@@ -144,7 +144,7 @@ def register_user(
             user_id=user_id,
             classroom_id=classroom_id,
             role=UserRole.USER,
-            face_image_path=str(image_path.resolve()),
+            face_image_key=str(image_path.resolve()),
             embedding_version=settings.EMBEDDING_VERSION,
             embedding_model=settings.MODEL_NAME,
             embedding_created_at=datetime.now(IST),
@@ -202,7 +202,7 @@ def get_all_registered_users(
                 "user_id": user.user_id,
                 "classroom_id": user.classroom_id,
                 "role": user.role,
-                "face_image_path": user.face_image_path,
+                "face_image_key": user.face_image_key,
                 "created_at": user.created_at,
             }
             for user in users

@@ -28,7 +28,7 @@ def upgrade() -> None:
         sa.Column("classroom_id", sa.String(), nullable=False),
         sa.Column("role", sa.Enum("ADMIN", "USER", name="userrole"), nullable=False),
         sa.Column("hashed_password", sa.String(), nullable=True),
-        sa.Column("face_image_path", sa.String(), nullable=True),
+        sa.Column("face_image_key", sa.String(), nullable=True),
         sa.Column("embedding_version", sa.String(), nullable=True),
         sa.Column("embedding_model", sa.String(), nullable=True),
         sa.Column("embedding_created_at", sa.DateTime(), nullable=True),

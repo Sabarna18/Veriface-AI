@@ -33,7 +33,7 @@ def create_admin():
             classroom_id=classroom_id,
             role=UserRole.ADMIN,
             hashed_password=get_password_hash(password),
-            face_image_path=None,
+            face_image_key=None,
             is_active=True,
         )
 

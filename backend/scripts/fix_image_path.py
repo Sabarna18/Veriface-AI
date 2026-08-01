@@ -21,7 +21,7 @@ def fix_paths():
         updated_count = 0
 
         for user in users:
-            old_path = user.face_image_path
+            old_path = user.face_image_key
 
             if not old_path:
                 continue
@@ -45,7 +45,7 @@ def fix_paths():
             print("-" * 50)
 
             # ✅ UPDATE DB
-            user.face_image_path = str(new_path.resolve())
+            user.face_image_key = str(new_path.resolve())
             updated_count += 1
 
         db.commit()

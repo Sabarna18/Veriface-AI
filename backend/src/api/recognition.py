@@ -64,7 +64,7 @@ def get_stored_embedding(user: User):
 
     # ---------------- REGENERATE ----------------
 
-    embedding_data = generate_embedding(user.face_image_path)
+    embedding_data = generate_embedding(user.face_image_key)
 
     if embedding_data is None:
         return None
@@ -92,7 +92,7 @@ def recognize_user(
 
     user = db.query(User).filter(User.user_id == user_id).first()
 
-    if not user or not user.face_image_path:
+    if not user or not user.face_image_key:
         raise HTTPException(
             status_code=404,
             detail="User not registered",

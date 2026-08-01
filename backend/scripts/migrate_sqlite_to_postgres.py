@@ -150,7 +150,7 @@ def transform_value(
     application data lives under /app/data.
     """
 
-    if column_name == "face_image_path" and isinstance(value, str) and value:
+    if column_name == "face_image_key" and isinstance(value, str) and value:
         marker = "/data/"
 
         if marker in value:

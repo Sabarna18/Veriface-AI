@@ -56,7 +56,7 @@ def serialize_user(user: User):
     return {
         "user_id": user.user_id,
         "classroom_id": user.classroom_id,
-        "face_image_path": user.face_image_path,
+        "face_image_key": user.face_image_key,
         "created_at": (user.created_at.isoformat() if user.created_at else None),
     }
 
@@ -130,14 +130,14 @@ def get_user_face_image(
             detail="User not found in this classroom",
         )
 
-    if not user.face_image_path:
+    if not user.face_image_key:
         raise HTTPException(
             status_code=404,
             detail="User has no face image",
         )
 
     # Normalize stored path
-    normalized_path = str(user.face_image_path).replace("\\", "/")
+    normalized_path = str(user.face_image_key).replace("\\", "/")
 
     # Extract filename only
     filename = Path(normalized_path).name
@@ -183,7 +183,7 @@ def delete_all_users(
         return {"message": "No users to delete", "count": 0}
 
     for user in users:
-        delete_face_image(user.face_image_path)
+        delete_face_image(user.face_image_key)
         db.delete(user)
 
     db.commit()
@@ -218,7 +218,7 @@ def delete_multiple_users(
     deleted = []
 
     for user in users:
-        delete_face_image(user.face_image_path)
+        delete_face_image(user.face_image_key)
         deleted.append(user.user_id)
         db.delete(user)
 
@@ -252,7 +252,7 @@ def delete_user(
         raise HTTPException(404, "User not found")
 
     # ✅ Delete image FIRST
-    delete_face_image(user.face_image_path)
+    delete_face_image(user.face_image_key)
 
     # ✅ Then delete DB record
     db.delete(user)

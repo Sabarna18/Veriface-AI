@@ -67,6 +67,26 @@ class Settings(BaseSettings):
     def ATTENDANCE_FILE(self) -> Path:
         return self.ATTENDANCE_DIR / "attendance_log.csv"
 
+
+    # ==========================================================
+    # Supabase Storage
+    # ==========================================================
+
+    SUPABASE_URL: str = Field(
+        ...,
+        description="Supabase project URL",
+    )
+
+    SUPABASE_SERVICE_ROLE_KEY: str = Field(
+        ...,
+        description="Supabase service role key",
+    )
+
+    SUPABASE_BUCKET: str = Field(
+        default="face-images",
+        description="Supabase storage bucket",
+    )
+
     # ==========================================================
     # Face Recognition
     # ==========================================================

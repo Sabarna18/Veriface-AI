@@ -142,7 +142,7 @@ def create_classroom(
         classroom_id=classroom_id,
         role=UserRole.ADMIN,
         is_active=True,
-        face_image_path=None,  # no face needed
+        face_image_key=None,  # no face needed
     )
 
     db.add(system_user)
@@ -185,7 +185,7 @@ def delete_classroom(
     )
 
     for user in users:
-        delete_face_image(user.face_image_path)
+        delete_face_image(user.face_image_key)
         db.delete(user)
 
     db.commit()
