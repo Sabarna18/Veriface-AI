@@ -27,6 +27,8 @@ env/
 # Environment Variables
 # ===============================
 *.env
+!backend/.env.ci
+!backend/.env.sample
 
 # ===============================
 # Logs

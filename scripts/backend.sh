@@ -7,14 +7,13 @@ set -Eeuo pipefail
 # ============================================================
 #
 # Runs the same backend checks locally and in CI:
-#   1. Verify uv
-#   2. Synchronize dependencies from lockfile
-#   3. Ruff lint
-#   4. Ruff formatting check
-#   5. Pytest
 #
-# Usage:
-#   ./scripts/backend.sh
+#   1. Verify uv
+#   2. Prepare CI environment
+#   3. Synchronize dependencies
+#   4. Ruff lint
+#   5. Ruff formatting
+#   6. Pytest
 #
 # ============================================================
 
@@ -30,6 +29,12 @@ fail() {
     exit 1
 }
 
+cleanup() {
+    rm -f "${BACKEND_DIR}/.env"
+}
+
+trap cleanup EXIT
+
 # ------------------------------------------------------------
 # Preconditions
 # ------------------------------------------------------------
@@ -38,7 +43,7 @@ command -v uv >/dev/null 2>&1 \
     || fail "uv is not installed or not available in PATH."
 
 [[ -d "${BACKEND_DIR}" ]] \
-    || fail "Backend directory not found: ${BACKEND_DIR}"
+    || fail "Backend directory not found."
 
 [[ -f "${BACKEND_DIR}/pyproject.toml" ]] \
     || fail "backend/pyproject.toml not found."
@@ -46,8 +51,11 @@ command -v uv >/dev/null 2>&1 \
 [[ -f "${BACKEND_DIR}/uv.lock" ]] \
     || fail "backend/uv.lock not found."
 
+[[ -f "${BACKEND_DIR}/.env.ci" ]] \
+    || fail "backend/.env.ci not found."
+
 # ------------------------------------------------------------
-# Environment information
+# Environment
 # ------------------------------------------------------------
 
 log "Backend environment"
@@ -55,6 +63,14 @@ log "Backend environment"
 echo "uv: $(uv --version)"
 
 cd "${BACKEND_DIR}"
+
+# ------------------------------------------------------------
+# Prepare CI Environment
+# ------------------------------------------------------------
+
+log "Preparing CI environment"
+
+cp .env.ci .env
 
 # ------------------------------------------------------------
 # Dependencies
@@ -65,7 +81,7 @@ log "Synchronizing backend dependencies"
 uv sync --frozen --extra dev
 
 # ------------------------------------------------------------
-# Ruff lint
+# Ruff Lint
 # ------------------------------------------------------------
 
 log "Running Ruff lint"
@@ -73,7 +89,7 @@ log "Running Ruff lint"
 uv run ruff check .
 
 # ------------------------------------------------------------
-# Ruff formatting
+# Ruff Formatting
 # ------------------------------------------------------------
 
 log "Checking Ruff formatting"
