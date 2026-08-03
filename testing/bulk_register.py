@@ -10,24 +10,19 @@ from pathlib import Path
 
 DUMMY_IMAGE = "dummy_face.jpg"
 
-SUPPORTED_EXTENSIONS = {
-    ".jpg",
-    ".jpeg",
-    ".png"
-}
+SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
 
 # ===================================================
 # VALIDATE IMAGE
 # ===================================================
 
+
 def validate_image():
 
     if not os.path.exists(DUMMY_IMAGE):
 
-        print(
-            f"❌ Dummy image not found: {DUMMY_IMAGE}"
-        )
+        print(f"❌ Dummy image not found: {DUMMY_IMAGE}")
 
         sys.exit(1)
 
@@ -35,10 +30,7 @@ def validate_image():
 
     if ext not in SUPPORTED_EXTENSIONS:
 
-        print(
-            "❌ Invalid image format. "
-            "Use JPG / JPEG / PNG"
-        )
+        print("❌ Invalid image format. " "Use JPG / JPEG / PNG")
 
         sys.exit(1)
 
@@ -47,33 +39,20 @@ def validate_image():
 # ADMIN LOGIN
 # ===================================================
 
-def get_admin_token(
-    port,
-    username,
-    password
-):
 
-    login_url = (
-        f"http://localhost:{port}/auth/login"
-    )
+def get_admin_token(port, username, password):
 
-    data = {
-        "username": username,
-        "password": password
-    }
+    login_url = f"http://localhost:{port}/auth/login"
+
+    data = {"username": username, "password": password}
 
     try:
 
-        response = requests.post(
-            login_url,
-            data=data
-        )
+        response = requests.post(login_url, data=data)
 
         if response.status_code != 200:
 
-            print(
-                "❌ Admin login failed:"
-            )
+            print("❌ Admin login failed:")
 
             print(response.text)
 
@@ -81,13 +60,9 @@ def get_admin_token(
 
         response_data = response.json()
 
-        token = response_data[
-            "access_token"
-        ]
+        token = response_data["access_token"]
 
-        print(
-            "✅ Admin authenticated\n"
-        )
+        print("✅ Admin authenticated\n")
 
         return token
 
@@ -102,6 +77,7 @@ def get_admin_token(
 # REGISTER SINGLE USER
 # ===================================================
 
+
 def register_single_user(
     api_url,
     token,
@@ -109,36 +85,21 @@ def register_single_user(
     classroom_id,
 ):
 
-    headers = {
-        "Authorization":
-            f"Bearer {token}"
-    }
+    headers = {"Authorization": f"Bearer {token}"}
 
     try:
 
-        with open(
-            DUMMY_IMAGE,
-            "rb"
-        ) as img:
+        with open(DUMMY_IMAGE, "rb") as img:
 
             # -------------------------------------------
             # FORM DATA
             # -------------------------------------------
 
-            files = {
-                "image": (
-                    os.path.basename(
-                        DUMMY_IMAGE
-                    ),
-                    img,
-                    "image/jpeg"
-                )
-            }
+            files = {"image": (os.path.basename(DUMMY_IMAGE), img, "image/jpeg")}
 
             payload = {
                 "user_id": user_id,
-                "classroom_id":
-                    classroom_id,
+                "classroom_id": classroom_id,
             }
 
             # -------------------------------------------
@@ -161,18 +122,12 @@ def register_single_user(
 
             response_data = response.json()
 
-            print(
-                f"✅ Registered: {user_id}"
-            )
+            print(f"✅ Registered: {user_id}")
+
+            print(f"   ↳ Embedding Model: " f"{response_data.get('embedding_model')}")
 
             print(
-                f"   ↳ Embedding Model: "
-                f"{response_data.get('embedding_model')}"
-            )
-
-            print(
-                f"   ↳ Embedding Version: "
-                f"{response_data.get('embedding_version')}"
+                f"   ↳ Embedding Version: " f"{response_data.get('embedding_version')}"
             )
 
             return True
@@ -183,38 +138,27 @@ def register_single_user(
 
         try:
 
-            detail = response.json().get(
-                "detail",
-                response.text
-            )
+            detail = response.json().get("detail", response.text)
 
         except Exception:
 
             detail = response.text
 
-        print(
-            f"❌ Failed: {user_id}"
-        )
+        print(f"❌ Failed: {user_id}")
 
-        print(
-            f"   ↳ Reason: {detail}"
-        )
+        print(f"   ↳ Reason: {detail}")
 
         return False
 
     except requests.Timeout:
 
-        print(
-            f"⏱ Timeout: {user_id}"
-        )
+        print(f"⏱ Timeout: {user_id}")
 
         return False
 
     except Exception as e:
 
-        print(
-            f"🔥 Error: {user_id}"
-        )
+        print(f"🔥 Error: {user_id}")
 
         print(f"   ↳ {e}")
 
@@ -225,20 +169,14 @@ def register_single_user(
 # BULK REGISTER
 # ===================================================
 
-def bulk_register(
-    json_file,
-    port,
-    token
-):
+
+def bulk_register(json_file, port, token):
 
     validate_image()
 
     if not os.path.exists(json_file):
 
-        print(
-            f"❌ JSON file not found: "
-            f"{json_file}"
-        )
+        print(f"❌ JSON file not found: " f"{json_file}")
 
         sys.exit(1)
 
@@ -250,33 +188,21 @@ def bulk_register(
 
         data = json.load(f)
 
-    classroom_id = data[
-        "classroom_id"
-    ]
+    classroom_id = data["classroom_id"]
 
     users = data["users"]
 
-    api_url = (
-        f"http://localhost:{port}/register/"
-    )
+    api_url = f"http://localhost:{port}/register/"
 
     print("\n===================================")
 
-    print(
-        f"📌 Classroom: {classroom_id}"
-    )
+    print(f"📌 Classroom: {classroom_id}")
 
-    print(
-        f"🌐 API: {api_url}"
-    )
+    print(f"🌐 API: {api_url}")
 
-    print(
-        f"🖼 Image: {DUMMY_IMAGE}"
-    )
+    print(f"🖼 Image: {DUMMY_IMAGE}")
 
-    print(
-        f"👥 Users: {len(users)}"
-    )
+    print(f"👥 Users: {len(users)}")
 
     print("===================================\n")
 
@@ -296,10 +222,7 @@ def bulk_register(
 
         user_id = user["user_id"]
 
-        print(
-            f"[{idx}/{len(users)}] "
-            f"Processing {user_id}..."
-        )
+        print(f"[{idx}/{len(users)}] " f"Processing {user_id}...")
 
         result = register_single_user(
             api_url=api_url,
@@ -329,9 +252,7 @@ def bulk_register(
 
     print(f"✖ Failed  : {failed}")
 
-    print(
-        f"📦 Total   : {len(users)}"
-    )
+    print(f"📦 Total   : {len(users)}")
 
     print("===================================\n")
 
@@ -342,34 +263,16 @@ def bulk_register(
 
 if __name__ == "__main__":
 
-    print(
-        "\n🚀 VeriFace Bulk Registration\n"
-    )
+    print("\n🚀 VeriFace Bulk Registration\n")
 
-    port = input(
-        "Enter backend port (e.g. 8002): "
-    ).strip()
+    port = input("Enter backend port (e.g. 8002): ").strip()
 
-    json_path = input(
-        "Enter users JSON file path: "
-    ).strip()
+    json_path = input("Enter users JSON file path: ").strip()
 
-    admin_user = input(
-        "Enter admin user_id: "
-    ).strip()
+    admin_user = input("Enter admin user_id: ").strip()
 
-    admin_pass = input(
-        "Enter admin password: "
-    ).strip()
+    admin_pass = input("Enter admin password: ").strip()
 
-    token = get_admin_token(
-        port,
-        admin_user,
-        admin_pass
-    )
+    token = get_admin_token(port, admin_user, admin_pass)
 
-    bulk_register(
-        json_file=json_path,
-        port=port,
-        token=token
-    )
+    bulk_register(json_file=json_path, port=port, token=token)
