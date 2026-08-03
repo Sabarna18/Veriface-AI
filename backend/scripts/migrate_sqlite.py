@@ -9,14 +9,13 @@ Usage
 uv run python scripts/migrate_sqlite.py
 """
 
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
 from db.database import SessionLocal
-from db.models import User, Attendance, UserRole
-
+from db.models import Attendance, User, UserRole
 
 ROOT = Path(__file__).resolve().parents[1]
 SQLITE_DB = ROOT / "attendance.db"
@@ -29,13 +28,9 @@ SQLITE_DB = ROOT / "attendance.db"
 sqlite = sqlite3.connect(SQLITE_DB)
 sqlite.row_factory = sqlite3.Row
 
-sqlite_users = sqlite.execute(
-    "SELECT * FROM users ORDER BY id"
-).fetchall()
+sqlite_users = sqlite.execute("SELECT * FROM users ORDER BY id").fetchall()
 
-sqlite_attendance = sqlite.execute(
-    "SELECT * FROM attendance ORDER BY id"
-).fetchall()
+sqlite_attendance = sqlite.execute("SELECT * FROM attendance ORDER BY id").fetchall()
 
 print(f"SQLite Users       : {len(sqlite_users)}")
 print(f"SQLite Attendance  : {len(sqlite_attendance)}")
@@ -55,9 +50,7 @@ try:
 
     if db.query(User).count() != 0:
 
-        raise RuntimeError(
-            "Target database is not empty."
-        )
+        raise RuntimeError("Target database is not empty.")
 
     # -----------------------------------------------------
     # USERS
@@ -84,9 +77,7 @@ try:
 
     db.commit()
 
-    print(
-        f"Users migrated : {db.query(User).count()}"
-    )
+    print(f"Users migrated : {db.query(User).count()}")
 
     # -----------------------------------------------------
     # ATTENDANCE
@@ -107,9 +98,7 @@ try:
 
     db.commit()
 
-    print(
-        f"Attendance migrated : {db.query(Attendance).count()}"
-    )
+    print(f"Attendance migrated : {db.query(Attendance).count()}")
 
     print("\nMigration completed successfully.")
 

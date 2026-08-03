@@ -16,10 +16,10 @@ from sqlalchemy import (
 
 from .database import Base
 
-
 # ==========================================================
 # User Roles
 # ==========================================================
+
 
 class UserRole(str, enum.Enum):
     ADMIN = "ADMIN"
@@ -32,6 +32,7 @@ IST = pytz.timezone("Asia/Kolkata")
 # ==========================================================
 # Users
 # ==========================================================
+
 
 class User(Base):
     __tablename__ = "users"
@@ -104,6 +105,7 @@ class User(Base):
 # ==========================================================
 # Attendance
 # ==========================================================
+
 
 class Attendance(Base):
     __tablename__ = "attendance"

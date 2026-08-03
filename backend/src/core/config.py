@@ -67,7 +67,6 @@ class Settings(BaseSettings):
     def ATTENDANCE_FILE(self) -> Path:
         return self.ATTENDANCE_DIR / "attendance_log.csv"
 
-
     # ==========================================================
     # Supabase Storage
     # ==========================================================
@@ -130,9 +129,6 @@ class Settings(BaseSettings):
     )
 
 
-settings = Settings()
-
-
 def initialize_directories() -> None:
     directories = (
         settings.RAW_FACES_DIR,
@@ -146,3 +142,6 @@ def initialize_directories() -> None:
             parents=True,
             exist_ok=True,
         )
+
+
+settings = Settings()

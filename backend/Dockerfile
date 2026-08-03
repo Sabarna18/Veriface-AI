@@ -45,6 +45,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 COPY pyproject.toml uv.lock ./
 
+ENV UV_HTTP_TIMEOUT=600
+
 RUN uv sync --frozen --no-dev
 
 # ----------------------------------------------------------
@@ -91,8 +93,17 @@ USER veriface
 
 EXPOSE 8002
 
+
+# ----------------------------------------------------------
+# Download DeepFace model weights
+# ----------------------------------------------------------
+
+RUN uv run python scripts/preload_models.py || true
+
+
 # ----------------------------------------------------------
 # Start
 # ----------------------------------------------------------
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
+

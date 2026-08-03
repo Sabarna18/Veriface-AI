@@ -5,35 +5,47 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from core.config import settings
 
-# -------------------- DATABASE URL --------------------
-# Example:
-# SQLite  -> sqlite:///./attendance.db
-# Postgres-> postgresql://user:password@localhost/dbname
+DATABASE_URL = settings.DATABASE_URL
 
-DATABASE_URL = getattr(settings, "DATABASE_URL", "sqlite:///./attendance.db")
+engine_kwargs = {}
 
-# -------------------- ENGINE --------------------
+if DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {
+        "check_same_thread": False,
+    }
+else:
+    engine_kwargs.update(
+        {
+            # Verify pooled connections before using them.
+            "pool_pre_ping": True,
+            # Recycle connections periodically so Neon doesn't
+            # hand back a closed idle connection.
+            "pool_recycle": 300,
+            # Optional: avoid holding too many idle connections.
+            "pool_size": 5,
+            "max_overflow": 10,
+        }
+    )
+
 engine = create_engine(
     DATABASE_URL,
-    connect_args=(
-        {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-    ),
+    **engine_kwargs,
 )
 
-# -------------------- SESSION --------------------
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+)
 
-# -------------------- BASE --------------------
 Base = declarative_base()
 
 
-# -------------------- DEPENDENCY --------------------
 def get_db():
-    """
-    FastAPI dependency to get DB session.
-    """
     db = SessionLocal()
+
     try:
         yield db
+
     finally:
         db.close()

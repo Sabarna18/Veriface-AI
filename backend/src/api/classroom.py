@@ -1,6 +1,5 @@
 # backend/src/api/classrooms.py
 
-import os
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -10,6 +9,7 @@ from sqlalchemy.orm import Session
 from core.dependencies import get_current_admin
 from db.database import get_db
 from db.models import Attendance, User, UserRole
+from utils.storage import storage
 
 router = APIRouter(prefix="/classrooms", tags=["Classrooms"])
 
@@ -19,12 +19,22 @@ router = APIRouter(prefix="/classrooms", tags=["Classrooms"])
 # =====================================================
 
 
-def delete_face_image(path: str):
-    if path and os.path.exists(path):
-        try:
-            os.remove(path)
-        except Exception as e:
-            print(f"[WARN] Failed to delete image {path}: {e}")
+def delete_face_image(storage_key: str | None) -> None:
+    """
+    Deletes a face image from Supabase Storage.
+
+    Failure to delete the image should not prevent
+    classroom deletion.
+    """
+
+    if not storage_key:
+        return
+
+    try:
+        storage.delete_face(storage_key)
+
+    except Exception as e:
+        print(f"[WARN] Failed to delete face image " f"'{storage_key}': {e}")
 
 
 def classroom_exists(db: Session, classroom_id: str) -> bool:

@@ -1,15 +1,14 @@
-import os
-from pathlib import Path
+from io import BytesIO
 from typing import List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from core.config import settings
 from core.dependencies import get_current_admin
 from db.database import get_db
 from db.models import User, UserRole
+from utils.storage import storage
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -17,39 +16,22 @@ router = APIRouter(prefix="/users", tags=["Users"])
 # ------------------ UTILS ------------------
 
 
-def delete_face_image(path: str):
-    if not path:
+def delete_face_image(storage_key: str | None) -> None:
+    """
+    Delete a face image from Supabase Storage.
+
+    Failure to delete the image should not prevent
+    deletion of the user.
+    """
+
+    if not storage_key:
         return
 
     try:
-        # ✅ Ensure string
-        raw_path = str(path)
-
-        # ✅ Normalize Windows → Linux
-        normalized_path = raw_path.replace("\\", "/")
-
-        # ✅ Try original path first
-        file_path = Path(normalized_path)
-
-        if file_path.exists():
-            file_path.unlink()
-            print(f"[INFO] Deleted image: {file_path}")
-            return
-
-        # 🔥 Fallback (VERY IMPORTANT)
-        filename = os.path.basename(normalized_path)
-
-        fallback_path = settings.RAW_FACES_DIR / filename
-
-        if fallback_path.exists():
-            fallback_path.unlink()
-            print(f"[INFO] Deleted image (fallback): {fallback_path}")
-            return
-
-        print(f"[WARN] Image not found for deletion: {path}")
+        storage.delete_face(storage_key)
 
     except Exception as e:
-        print(f"[ERROR] Failed to delete image {path}: {e}")
+        print(f"[WARN] Failed to delete face image " f"'{storage_key}': {e}")
 
 
 def serialize_user(user: User):
@@ -136,31 +118,20 @@ def get_user_face_image(
             detail="User has no face image",
         )
 
-    # Normalize stored path
-    normalized_path = str(user.face_image_key).replace("\\", "/")
+    try:
+        image_bytes = storage.download_face(
+            user.face_image_key,
+        )
 
-    # Extract filename only
-    filename = Path(normalized_path).name
-
-    if not filename:
+    except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail="Invalid face image path",
+            detail=f"Failed to retrieve face image: {e}",
         )
 
-    # Canonical runtime location
-    image_path = settings.RAW_FACES_DIR / filename
-
-    if not image_path.is_file():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Image file missing on server: {image_path}",
-        )
-
-    return FileResponse(
-        path=str(image_path),
+    return StreamingResponse(
+        BytesIO(image_bytes),
         media_type="image/jpeg",
-        filename=image_path.name,
     )
 
 

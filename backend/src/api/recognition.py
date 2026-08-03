@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+from pathlib import Path
 
 import numpy as np
 from fastapi import (
@@ -17,6 +18,7 @@ from core.config import settings
 from core.embedding_manager import generate_embedding
 from db.database import get_db
 from db.models import User
+from utils.storage import storage
 
 router = APIRouter(prefix="/recognize", tags=["Recognition"])
 
@@ -53,26 +55,53 @@ def cosine_distance(a, b):
 
 
 def get_stored_embedding(user: User):
-    # ---------------- CACHE HIT ----------------
+    """
+    Returns the stored embedding.
+
+    Cached embeddings are reused whenever the embedding
+    version matches the current application version.
+
+    If no cache exists, the face image is downloaded from
+    Supabase Storage, embedded, cached and returned.
+    """
 
     cached = EMBEDDING_CACHE.get(user.user_id)
 
-    if cached:
-        # version validation
-        if cached["embedding_version"] == settings.EMBEDDING_VERSION:
-            return cached
+    if cached and cached["embedding_version"] == settings.EMBEDDING_VERSION:
+        return cached
 
-    # ---------------- REGENERATE ----------------
+    temp_path = None
 
-    embedding_data = generate_embedding(user.face_image_key)
+    try:
+        image_bytes = storage.download_face(
+            user.face_image_key,
+        )
 
-    if embedding_data is None:
-        return None
+        suffix = Path(user.face_image_key).suffix or ".jpg"
 
-    # cache it
-    EMBEDDING_CACHE[user.user_id] = embedding_data
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=suffix,
+        ) as temp_file:
 
-    return embedding_data
+            temp_file.write(image_bytes)
+            temp_file.flush()
+
+            temp_path = temp_file.name
+
+        embedding_data = generate_embedding(temp_path)
+
+        if embedding_data is None:
+            return None
+
+        EMBEDDING_CACHE[user.user_id] = embedding_data
+
+        return embedding_data
+
+    finally:
+
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
 
 
 # ---------------------------------------------------

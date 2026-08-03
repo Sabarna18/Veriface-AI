@@ -1,15 +1,20 @@
 # backend/src/api/registration.py
 
 import shutil
-
-# ---------------------------------------------------
-# ROUTES
-# ---------------------------------------------------
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
 import pytz
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -17,55 +22,64 @@ from core.dependencies import get_current_admin
 from core.embedding_manager import generate_embedding
 from db.database import get_db
 from db.models import User, UserRole
+from utils.storage import storage
 
-router = APIRouter(prefix="/register", tags=["Registration"])
+router = APIRouter(
+    prefix="/register",
+    tags=["Registration"],
+)
 
-# ---------------------------------------------------
+# ==========================================================
 # CONFIG
-# ---------------------------------------------------
+# ==========================================================
 
-FACE_DIR: Path = settings.RAW_FACES_DIR
-FACE_DIR.mkdir(parents=True, exist_ok=True)
-
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
-
-
-# ---------------------------------------------------
-# UTIL FUNCTIONS
-# ---------------------------------------------------
-
-
-def validate_image_extension(filename: str) -> str:
-    ext = Path(filename).suffix.lower()
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid image format. Only JPG, JPEG, PNG allowed.",
-        )
-    return ext
-
-
-def get_image_path(user_id: str, ext: str) -> Path:
-    return FACE_DIR / f"{user_id}{ext}"
-
-
-router = APIRouter(prefix="/register", tags=["Registration"])
-
-# ---------------------------------------------------
-# CONFIG
-# ---------------------------------------------------
-
-FACE_DIR: Path = settings.RAW_FACES_DIR
-FACE_DIR.mkdir(parents=True, exist_ok=True)
-
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+ALLOWED_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+}
 
 IST = pytz.timezone("Asia/Kolkata")
 
 
-# ---------------------------------------------------
-# ROUTES
-# ---------------------------------------------------
+# ==========================================================
+# UTILITIES
+# ==========================================================
+
+
+def validate_image_extension(filename: str) -> str:
+    ext = Path(filename).suffix.lower()
+
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid image format. Only JPG, JPEG and PNG are allowed.",
+        )
+
+    return ext
+
+
+def create_temp_image(ext: str) -> Path:
+    """
+    Creates a temporary image file.
+
+    The file is automatically deleted at the end
+    of the request.
+    """
+
+    temp = tempfile.NamedTemporaryFile(
+        delete=False,
+        suffix=ext,
+    )
+
+    temp.close()
+
+    return Path(temp.name)
+
+
+# ==========================================================
+# REGISTER USER
+# ==========================================================
 
 
 @router.post("/")
@@ -76,9 +90,9 @@ def register_user(
     db: Session = Depends(get_db),
     admin=Depends(get_current_admin),
 ):
-    # ---------------------------------------------------
+    # -------------------------------------------------------
     # CHECK EXISTING USER
-    # ---------------------------------------------------
+    # -------------------------------------------------------
 
     existing_user = db.query(User).filter(User.user_id == user_id).first()
 
@@ -88,89 +102,100 @@ def register_user(
             detail="User already registered",
         )
 
-    # ---------------------------------------------------
+    # -------------------------------------------------------
     # VALIDATE IMAGE
-    # ---------------------------------------------------
+    # -------------------------------------------------------
 
     ext = validate_image_extension(image.filename)
 
-    image_path: Path = get_image_path(user_id, ext)
+    temp_path = create_temp_image(ext)
 
-    # ---------------------------------------------------
-    # SAVE IMAGE
-    # ---------------------------------------------------
+    storage_key = None
 
     try:
+        # ---------------------------------------------------
+        # SAVE TEMP IMAGE
+        # ---------------------------------------------------
+
         image.file.seek(0)
 
-        with open(image_path, "wb") as buffer:
+        with temp_path.open("wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
 
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save image: {str(e)}",
+        # ---------------------------------------------------
+        # GENERATE EMBEDDING
+        # ---------------------------------------------------
+
+        embedding_data = generate_embedding(
+            str(temp_path),
         )
-
-    # ---------------------------------------------------
-    # GENERATE EMBEDDING
-    # ---------------------------------------------------
-
-    try:
-        embedding_data = generate_embedding(str(image_path.resolve()))
 
         if embedding_data is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No face embedding generated",
+                detail="No face embedding generated.",
             )
 
-    except Exception as e:
-        # cleanup image
-        if image_path.exists():
-            image_path.unlink()
+        # ---------------------------------------------------
+        # UPLOAD TO SUPABASE
+        # ---------------------------------------------------
 
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Embedding generation failed: {str(e)}",
+        storage_key = storage.upload_face(
+            file_path=temp_path,
+            classroom_id=classroom_id,
+            user_id=user_id,
         )
 
-    # ---------------------------------------------------
-    # SAVE USER
-    # ---------------------------------------------------
+        image = storage.download_face(storage_key)
 
-    try:
+        if not image:
+            raise RuntimeError("Upload verification failed")
+
+        # ---------------------------------------------------
+        # SAVE USER
+        # ---------------------------------------------------
+
         user = User(
             user_id=user_id,
             classroom_id=classroom_id,
             role=UserRole.USER,
-            face_image_key=str(image_path.resolve()),
+            face_image_key=storage_key,
             embedding_version=settings.EMBEDDING_VERSION,
             embedding_model=settings.MODEL_NAME,
             embedding_created_at=datetime.now(IST),
         )
 
         db.add(user)
-
+        user.face_image_key = storage_key
         db.commit()
-
         db.refresh(user)
 
-    except Exception:
+    except HTTPException:
         db.rollback()
 
-        # cleanup file
-        if image_path.exists():
-            image_path.unlink()
+        if storage_key:
+            storage.delete_face(storage_key)
+
+        raise
+
+    except Exception as e:
+        db.rollback()
+
+        if storage_key:
+            storage.delete_face(storage_key)
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to register user",
+            detail=f"Registration failed: {str(e)}",
         )
 
-    # ---------------------------------------------------
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+    # -------------------------------------------------------
     # RESPONSE
-    # ---------------------------------------------------
+    # -------------------------------------------------------
 
     return {
         "message": "User registered successfully",
@@ -182,9 +207,9 @@ def register_user(
     }
 
 
-# ---------------------------------------------------
+# ==========================================================
 # GET ALL USERS
-# ---------------------------------------------------
+# ==========================================================
 
 
 @router.get("/users/")
