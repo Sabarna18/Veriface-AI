@@ -49,10 +49,9 @@ class StorageService:
 
         extension = file_path.suffix.lower()
 
-        storage_key = f"{classroom_id}/" f"{user_id}/" f"{uuid4().hex}{extension}"
+        storage_key = f"{classroom_id}/{user_id}/{uuid4().hex}{extension}"
 
         with file_path.open("rb") as file:
-
             self.client.storage.from_(self.bucket).upload(
                 path=storage_key,
                 file=file,
@@ -96,7 +95,6 @@ class StorageService:
             return data
 
         except Exception as e:
-
             print("\n" + "=" * 60)
             print("SUPABASE DOWNLOAD FAILED")
             print("=" * 60)

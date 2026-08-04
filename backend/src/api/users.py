@@ -31,7 +31,7 @@ def delete_face_image(storage_key: str | None) -> None:
         storage.delete_face(storage_key)
 
     except Exception as e:
-        print(f"[WARN] Failed to delete face image " f"'{storage_key}': {e}")
+        print(f"[WARN] Failed to delete face image '{storage_key}': {e}")
 
 
 def serialize_user(user: User):

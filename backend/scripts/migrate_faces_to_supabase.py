@@ -68,14 +68,12 @@ def migrate() -> None:
     print("=" * 60)
 
     try:
-
         users = db.query(User).all()
 
         print(f"Users found : {len(users)}")
         print()
 
         for user in users:
-
             print("-" * 60)
             print(f"User : {user.user_id}")
 
@@ -102,7 +100,6 @@ def migrate() -> None:
                 continue
 
             try:
-
                 print("Uploading to Supabase...")
 
                 storage_key = storage.upload_face(
@@ -122,7 +119,6 @@ def migrate() -> None:
                 print("Status : Migrated")
 
             except Exception as exc:
-
                 db.rollback()
 
                 failed += 1

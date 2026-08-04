@@ -130,7 +130,7 @@ def main() -> None:
             print("No registered users.")
 
         for user in recent:
-            print(f"{user.user_id:<20}" f"{user.classroom_id:<15}" f"{user.created_at}")
+            print(f"{user.user_id:<20}{user.classroom_id:<15}{user.created_at}")
 
         print()
         print("=" * 70)

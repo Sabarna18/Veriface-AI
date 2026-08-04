@@ -43,13 +43,11 @@ print(f"SQLite Attendance  : {len(sqlite_attendance)}")
 db: Session = SessionLocal()
 
 try:
-
     # -----------------------------------------------------
     # Safety Check
     # -----------------------------------------------------
 
     if db.query(User).count() != 0:
-
         raise RuntimeError("Target database is not empty.")
 
     # -----------------------------------------------------
@@ -59,7 +57,6 @@ try:
     print("\nMigrating users...")
 
     for row in sqlite_users:
-
         db.add(
             User(
                 user_id=row["user_id"],
@@ -86,7 +83,6 @@ try:
     print("\nMigrating attendance...")
 
     for row in sqlite_attendance:
-
         db.add(
             Attendance(
                 user_id=row["user_id"],
@@ -103,11 +99,9 @@ try:
     print("\nMigration completed successfully.")
 
 except Exception:
-
     db.rollback()
     raise
 
 finally:
-
     sqlite.close()
     db.close()

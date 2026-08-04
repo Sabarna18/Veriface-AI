@@ -83,7 +83,6 @@ def get_stored_embedding(user: User):
             delete=False,
             suffix=suffix,
         ) as temp_file:
-
             temp_file.write(image_bytes)
             temp_file.flush()
 
@@ -99,7 +98,6 @@ def get_stored_embedding(user: User):
         return embedding_data
 
     finally:
-
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
 
