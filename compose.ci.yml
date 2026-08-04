@@ -1,0 +1,60 @@
+name: veriface-ai-ci
+
+services:
+  # ==========================================================
+  # Backend (CI Overrides)
+  # ==========================================================
+
+  backend:
+    env_file:
+      - ./backend/.env
+
+    environment:
+      # ------------------------------------------------------
+      # Skip external dependencies during CI
+      # ------------------------------------------------------
+
+      WAIT_FOR_DATABASE: "false"
+
+      RUN_MIGRATIONS: "false"
+
+      RUN_LEGACY_MIGRATION: "false"
+
+      # ------------------------------------------------------
+      # CI Runtime
+      # ------------------------------------------------------
+
+      ENVIRONMENT: ci
+
+      DATA_DIR: /app/data
+
+    restart: "no"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/app/.venv/bin/python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/', timeout=5)",
+        ]
+
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  # ==========================================================
+  # Frontend (CI Overrides)
+  # ==========================================================
+
+  web:
+    restart: "no"
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8000/"]
+
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 15s

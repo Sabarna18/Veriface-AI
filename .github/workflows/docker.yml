@@ -13,6 +13,7 @@ on:
       - "nginx/**"
       - "scripts/docker.sh"
       - "compose.yml"
+      - "compose.ci.yml"
       - ".github/workflows/docker.yml"
 
   pull_request:
@@ -25,73 +26,117 @@ on:
       - "nginx/**"
       - "scripts/docker.sh"
       - "compose.yml"
+      - "compose.ci.yml"
       - ".github/workflows/docker.yml"
 
   workflow_dispatch:
 
+# ==========================================================
+# Permissions
+# ==========================================================
+
 permissions:
   contents: read
+
+# ==========================================================
+# Concurrency
+# ==========================================================
 
 concurrency:
   group: docker-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# ==========================================================
+# Environment
+# ==========================================================
+
 env:
   COMPOSE_FILE: compose.yml
+  COMPOSE_CI_FILE: compose.ci.yml
+
   HEALTH_TIMEOUT: "240"
   POLL_INTERVAL: "5"
 
 jobs:
+
+  # ==========================================================
+  # Docker Stack Verification
+  # ==========================================================
+
   docker-verification:
     name: Docker Stack Verification
 
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     defaults:
       run:
         shell: bash
 
     steps:
-      # ======================================================
-      # Repository
-      # ======================================================
+
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # ======================================================
-      # Docker
-      # ======================================================
+      # ------------------------------------------------------
+      # Docker Buildx
+      # ------------------------------------------------------
 
-      - name: Setup Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Show Docker Environment
+      # ------------------------------------------------------
+      # Docker Information
+      # ------------------------------------------------------
+
+      - name: Docker Environment
         run: |
           docker --version
           docker compose version
+          docker buildx version
 
-      # ======================================================
-      # Script Validation
-      # ======================================================
+      # ------------------------------------------------------
+      # Script Permissions
+      # ------------------------------------------------------
 
       - name: Make Docker Script Executable
         run: chmod +x scripts/docker.sh
 
+      # ------------------------------------------------------
+      # Shell Validation
+      # ------------------------------------------------------
+
       - name: Validate Docker Script
         run: bash -n scripts/docker.sh
 
-      # ======================================================
-      # Stack Verification
-      # ======================================================
+      # ------------------------------------------------------
+      # Docker Verification
+      # ------------------------------------------------------
 
       - name: Run Docker Verification
         run: ./scripts/docker.sh
 
-      # ======================================================
-      # Summary
-      # ======================================================
+      # ------------------------------------------------------
+      # Upload Logs on Failure
+      # ------------------------------------------------------
+
+      - name: Upload Docker Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-logs
+          path: |
+            backend/logs
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # ------------------------------------------------------
+      # Workflow Summary
+      # ------------------------------------------------------
 
       - name: Generate Docker Summary
         if: always()
@@ -104,8 +149,10 @@ jobs:
             echo "| Repository | \`${{ github.repository }}\` |"
             echo "| Branch | \`${{ github.ref_name }}\` |"
             echo "| Commit | \`${{ github.sha }}\` |"
-            echo "| Compose | \`${{ env.COMPOSE_FILE }}\` |"
-            echo "| Health timeout | \`${{ env.HEALTH_TIMEOUT }}s\` |"
+            echo "| Compose | \`${{ env.COMPOSE_FILE }} + ${{ env.COMPOSE_CI_FILE }}\` |"
+            echo "| Timeout | \`${{ env.HEALTH_TIMEOUT }} seconds\` |"
             echo
-            echo "Docker stack verification workflow completed."
+            echo "## Result"
+            echo
+            echo "Docker stack build, startup and health verification completed."
           } >> "$GITHUB_STEP_SUMMARY"

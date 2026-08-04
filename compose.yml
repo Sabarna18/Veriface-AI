@@ -1,9 +1,8 @@
 name: veriface-ai
 
 services:
-
   # ==========================================================
-  # FastAPI Backend
+  # Backend
   # ==========================================================
 
   backend:
@@ -20,7 +19,10 @@ services:
 
     environment:
       DATA_DIR: /app/data
-      MIGRATE_LEGACY_DB: "false"
+
+      WAIT_FOR_DATABASE: "true"
+      RUN_MIGRATIONS: "true"
+      RUN_LEGACY_MIGRATION: "false"
 
     expose:
       - "8002"
@@ -37,7 +39,7 @@ services:
           "CMD",
           "/app/.venv/bin/python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/', timeout=5)"
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/', timeout=5)",
         ]
       interval: 30s
       timeout: 10s
@@ -48,7 +50,7 @@ services:
       - veriface-network
 
   # ==========================================================
-  # Nginx + React
+  # Frontend
   # ==========================================================
 
   web:
@@ -68,14 +70,7 @@ services:
       - "80:8000"
 
     healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--spider",
-          "-q",
-          "http://127.0.0.1:8000/"
-        ]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8000/"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -89,13 +84,9 @@ services:
 # ==========================================================
 
 volumes:
-
   backend_data:
-
   backend_models:
-
   deepface_weights:
-
   backend_logs:
 
 # ==========================================================
@@ -103,6 +94,5 @@ volumes:
 # ==========================================================
 
 networks:
-
   veriface-network:
     driver: bridge

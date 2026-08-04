@@ -7,6 +7,12 @@
 set -Eeuo pipefail
 
 COMPOSE_FILE="${COMPOSE_FILE:-compose.yml}"
+COMPOSE_CI_FILE="${COMPOSE_CI_FILE:-compose.ci.yml}"
+
+COMPOSE_ARGS=(
+    -f "$COMPOSE_FILE"
+    -f "$COMPOSE_CI_FILE"
+)
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-240}"
 POLL_INTERVAL="${POLL_INTERVAL:-5}"
 
@@ -182,10 +188,15 @@ log_section "VeriFace AI - Docker Verification"
 echo ""
 echo "[1/8] Validating repository structure..."
 
-if [[ ! -f "$COMPOSE_FILE" ]]; then
-    echo "ERROR: Compose file not found: $COMPOSE_FILE"
+[[ -f "$COMPOSE_FILE" ]] || {
+    echo "ERROR: $COMPOSE_FILE not found"
     exit 1
-fi
+}
+
+[[ -f "$COMPOSE_CI_FILE" ]] || {
+    echo "ERROR: $COMPOSE_CI_FILE not found"
+    exit 1
+}
 
 if [[ ! -d backend ]]; then
     echo "ERROR: backend directory not found"
@@ -286,7 +297,7 @@ echo ""
 echo "[4/8] Validating Compose configuration..."
 
 docker compose \
-    -f "$COMPOSE_FILE" \
+    "${COMPOSE_ARGS[@]}" \
     config \
     --quiet
 
@@ -301,7 +312,7 @@ echo ""
 echo "[5/8] Building Docker images..."
 
 docker compose \
-    -f "$COMPOSE_FILE" \
+    "${COMPOSE_ARGS[@]}" \
     build \
     --pull
 
@@ -316,7 +327,7 @@ echo ""
 echo "[6/8] Starting Docker stack..."
 
 docker compose \
-    -f "$COMPOSE_FILE" \
+    "${COMPOSE_ARGS[@]}" \
     up \
     --detach
 
@@ -334,9 +345,9 @@ start_time="$(date +%s)"
 
 expected_services="$(
     docker compose \
-        -f "$COMPOSE_FILE" \
-        config \
-        --services
+    "${COMPOSE_ARGS[@]}" \
+    config \
+    --services
 )"
 
 while true; do
@@ -350,7 +361,7 @@ while true; do
 
         container_id="$(
             docker compose \
-                -f "$COMPOSE_FILE" \
+                -f "${COMPOSE_ARGS[@]}" \
                 ps \
                 -q \
                 "$service"
@@ -482,17 +493,20 @@ echo "✓ All Docker services healthy"
 echo ""
 echo "[8/8] Final Docker verification..."
 
-docker compose -f "$COMPOSE_FILE" ps
+docker compose -f "${COMPOSE_ARGS[@]}" ps
 
 log_section "Docker Verification Passed"
 
-echo "Compose file : $COMPOSE_FILE"
+echo "Compose files:"
+echo "  • $COMPOSE_FILE"
+echo "  • $COMPOSE_CI_FILE"
+
 echo "Environment  : ${ENVIRONMENT:-test}"
 echo ""
 echo "Services:"
 
 docker compose \
-    -f "$COMPOSE_FILE" \
+    -f "${COMPOSE_ARGS[@]}" \
     config \
     --services
 
