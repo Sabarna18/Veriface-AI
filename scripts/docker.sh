@@ -252,11 +252,6 @@ CI_ENV_CREATED=true
 
 echo "✓ CI environment prepared"
 
-set -a
-source backend/.env
-set +a
-
-
 # ----------------------------------------------------------
 # Export variables for Compose interpolation
 # ----------------------------------------------------------
