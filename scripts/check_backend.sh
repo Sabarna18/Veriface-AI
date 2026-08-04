@@ -19,12 +19,10 @@ ORIGINAL_ENV_EXISTS=false
 cleanup() {
     cd "${BACKEND_DIR}"
 
-    if [[ "${ORIGINAL_ENV_EXISTS}" == "true" ]]; then
-        rm -f .env
+    rm -f .env
+
+    if [[ "${ORIGINAL_ENV_EXISTS}" == "true" && -f .env.backup ]]; then
         mv -f .env.backup .env
-    else
-        rm -f .env
-        rm -f .env.backup
     fi
 }
 
@@ -47,34 +45,21 @@ command -v uv >/dev/null 2>&1 || {
 
 cd "${BACKEND_DIR}"
 
-[[ -f pyproject.toml ]] || {
-    echo -e "${RED}pyproject.toml not found.${NC}"
-    exit 1
-}
-
-[[ -f uv.lock ]] || {
-    echo -e "${RED}uv.lock not found.${NC}"
-    exit 1
-}
-
-[[ -f .env.ci ]] || {
-    echo -e "${RED}.env.ci not found.${NC}"
-    exit 1
-}
+[[ -f pyproject.toml ]] || { echo "pyproject.toml not found."; exit 1; }
+[[ -f uv.lock ]] || { echo "uv.lock not found."; exit 1; }
+[[ -f .env.ci ]] || { echo ".env.ci not found."; exit 1; }
 
 # ==========================================================
-# Preserve developer environment
+# Backup developer environment
 # ==========================================================
 
 if [[ -f .env ]]; then
     ORIGINAL_ENV_EXISTS=true
-    mv .env .env.backup
+    cp .env .env.backup
 fi
 
-cp .env.ci .env
-
 # ==========================================================
-# Verification
+# General checks (real environment)
 # ==========================================================
 
 echo -e "${BLUE}[1/8] Python version...${NC}"
@@ -89,8 +74,32 @@ uv run ruff check .
 echo -e "${BLUE}[4/8] Ruff formatting...${NC}"
 uv run ruff format --check .
 
+# ==========================================================
+# Switch to CI environment for tests
+# ==========================================================
+
 echo -e "${BLUE}[5/8] Running backend tests...${NC}"
+
+rm -f .env
+cp .env.ci .env
+
 uv run pytest -v
+
+# ==========================================================
+# Restore developer environment
+# ==========================================================
+
+if [[ "${ORIGINAL_ENV_EXISTS}" == "true" ]]; then
+    rm -f .env
+    mv -f .env.backup .env
+
+    # recreate backup for cleanup trap
+    cp .env .env.backup
+fi
+
+# ==========================================================
+# Real database validation
+# ==========================================================
 
 echo -e "${BLUE}[6/8] Alembic migration validation...${NC}"
 uv run alembic check
@@ -99,7 +108,7 @@ echo -e "${BLUE}[7/8] Database summary...${NC}"
 uv run python scripts/db_summary.py
 
 echo -e "${BLUE}[8/8] Environment restoration...${NC}"
-echo "Developer environment will be restored automatically."
+echo "Developer environment verified."
 
 echo ""
 echo "=========================================================="

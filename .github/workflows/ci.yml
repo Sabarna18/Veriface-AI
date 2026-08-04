@@ -85,7 +85,7 @@ jobs:
       # ------------------------------------------------------
 
       - name: Run Backend Validation
-        run: ./scripts/backend.sh
+        run: ./scripts/backend_ci.sh
 
   # ==========================================================
   # Frontend Verification

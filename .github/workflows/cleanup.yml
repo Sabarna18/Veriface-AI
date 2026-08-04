@@ -1,0 +1,45 @@
+name: Cleanup Registry
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"   # Every Sunday 03:00 UTC
+
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+concurrency:
+  group: cleanup-registry
+  cancel-in-progress: false
+
+jobs:
+
+  cleanup:
+
+    name: Cleanup GHCR
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        package:
+          - veriface-ai-backend
+          - veriface-ai-frontend
+
+    steps:
+
+      - name: Delete old container versions
+
+        uses: actions/delete-package-versions@v5
+
+        with:
+          package-name: ${{ matrix.package }}
+
+          package-type: container
+
+          min-versions-to-keep: 10
+
+          delete-only-untagged-versions: true
+
+          token: ${{ secrets.GITHUB_TOKEN }}
