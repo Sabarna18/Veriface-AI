@@ -29,67 +29,88 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-
-# ==========================================================
-# Build & Publish Containers
-# ==========================================================
+  # ==========================================================
+  # Build & Publish Images
+  # ==========================================================
 
   publish:
+    name: Build & Publish Containers
 
-    name: Build & Publish Images
+    if: startsWith(github.ref, 'refs/tags/v')
 
     runs-on: ubuntu-latest
 
     timeout-minutes: 45
 
-    steps:
+    defaults:
+      run:
+        shell: bash
 
-# ----------------------------------------------------------
-# Checkout
-# ----------------------------------------------------------
+    steps:
+      # ----------------------------------------------------------
+      # Checkout
+      # ----------------------------------------------------------
 
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-# ----------------------------------------------------------
-# Setup Buildx
-# ----------------------------------------------------------
+      # ----------------------------------------------------------
+      # Setup Buildx
+      # ----------------------------------------------------------
 
-      - name: Set up Docker Buildx
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          install: true
 
-# ----------------------------------------------------------
-# Login GHCR
-# ----------------------------------------------------------
+      # ----------------------------------------------------------
+      # Login GHCR
+      # ----------------------------------------------------------
 
-      - name: Login to GHCR
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-# ----------------------------------------------------------
-# Extract Docker Metadata
-# ----------------------------------------------------------
+      # ----------------------------------------------------------
+      # Backend Metadata
+      # ----------------------------------------------------------
 
       - name: Backend Docker Metadata
         id: backend_meta
+
         uses: docker/metadata-action@v5
+
         with:
-          images: ghcr.io/${{ github.repository_owner }}/veriface-ai-backend
+          images: |
+            ghcr.io/${{ github.repository_owner }}/veriface-ai-backend
 
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
             type=sha
+
+          labels: |
+            org.opencontainers.image.title=VeriFace AI Backend
+            org.opencontainers.image.description=Production FastAPI Backend
+            org.opencontainers.image.vendor=VeriFace AI
+            org.opencontainers.image.licenses=MIT
+
+      # ----------------------------------------------------------
+      # Frontend Metadata
+      # ----------------------------------------------------------
 
       - name: Frontend Docker Metadata
         id: frontend_meta
+
         uses: docker/metadata-action@v5
+
         with:
-          images: ghcr.io/${{ github.repository_owner }}/veriface-ai-frontend
+          images: |
+            ghcr.io/${{ github.repository_owner }}/veriface-ai-frontend
 
           tags: |
             type=semver,pattern={{version}}
@@ -97,11 +118,17 @@ jobs:
             type=raw,value=latest
             type=sha
 
-# ----------------------------------------------------------
-# Build Backend
-# ----------------------------------------------------------
+          labels: |
+            org.opencontainers.image.title=VeriFace AI Frontend
+            org.opencontainers.image.description=Production React Frontend
+            org.opencontainers.image.vendor=VeriFace AI
+            org.opencontainers.image.licenses=MIT
 
-      - name: Build & Push Backend
+      # ----------------------------------------------------------
+      # Build Backend
+      # ----------------------------------------------------------
+
+      - name: Build & Push Backend Image
         id: backend
 
         uses: docker/build-push-action@v6
@@ -111,9 +138,11 @@ jobs:
 
           file: ./backend/Dockerfile
 
+          platforms: linux/amd64
+
           push: true
 
-          provenance: true
+          provenance: mode=max
 
           sbom: true
 
@@ -121,15 +150,15 @@ jobs:
 
           labels: ${{ steps.backend_meta.outputs.labels }}
 
-          cache-from: type=gha
+          cache-from: type=gha,scope=backend
 
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,scope=backend
 
-# ----------------------------------------------------------
-# Build Frontend
-# ----------------------------------------------------------
+      # ----------------------------------------------------------
+      # Build Frontend
+      # ----------------------------------------------------------
 
-      - name: Build & Push Frontend
+      - name: Build & Push Frontend Image
         id: frontend
 
         uses: docker/build-push-action@v6
@@ -139,9 +168,11 @@ jobs:
 
           file: ./frontend/Dockerfile
 
+          platforms: linux/amd64
+
           push: true
 
-          provenance: true
+          provenance: mode=max
 
           sbom: true
 
@@ -149,13 +180,13 @@ jobs:
 
           labels: ${{ steps.frontend_meta.outputs.labels }}
 
-          cache-from: type=gha
+          cache-from: type=gha,scope=frontend
 
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,scope=frontend
 
-# ----------------------------------------------------------
-# Attest Backend
-# ----------------------------------------------------------
+      # ----------------------------------------------------------
+      # Backend Provenance Attestation
+      # ----------------------------------------------------------
 
       - name: Generate Backend Attestation
 
@@ -168,9 +199,9 @@ jobs:
 
           push-to-registry: true
 
-# ----------------------------------------------------------
-# Attest Frontend
-# ----------------------------------------------------------
+      # ----------------------------------------------------------
+      # Frontend Provenance Attestation
+      # ----------------------------------------------------------
 
       - name: Generate Frontend Attestation
 
@@ -183,9 +214,27 @@ jobs:
 
           push-to-registry: true
 
-# ----------------------------------------------------------
-# GitHub Release
-# ----------------------------------------------------------
+      # ----------------------------------------------------------
+      # Upload Compose File
+      # ----------------------------------------------------------
+
+      - name: Upload Deployment Assets
+
+        uses: actions/upload-artifact@v4
+
+        with:
+          name: deployment-assets
+
+          path: |
+            compose.yml
+            README.md
+            LICENSE
+
+          if-no-files-found: ignore
+
+      # ----------------------------------------------------------
+      # Create GitHub Release
+      # ----------------------------------------------------------
 
       - name: Create GitHub Release
 
@@ -194,40 +243,72 @@ jobs:
         with:
           generate_release_notes: true
 
+          append_body: true
+
           draft: false
 
           prerelease: false
 
-          append_body: true
-
           body: |
 
-            ## Published Images
+            ## 🚀 Published Container Images
 
-            Backend
+            ### Backend
 
-            ghcr.io/${{ github.repository_owner }}/veriface-ai-backend:${{ github.ref_name }}
+            `ghcr.io/${{ github.repository_owner }}/veriface-ai-backend:${{ github.ref_name }}`
 
-            Frontend
+            Digest
 
-            ghcr.io/${{ github.repository_owner }}/veriface-ai-frontend:${{ github.ref_name }}
+            `${{ steps.backend.outputs.digest }}`
 
-# ----------------------------------------------------------
-# Summary
-# ----------------------------------------------------------
+            ---
+
+            ### Frontend
+
+            `ghcr.io/${{ github.repository_owner }}/veriface-ai-frontend:${{ github.ref_name }}`
+
+            Digest
+
+            `${{ steps.frontend.outputs.digest }}`
+
+            ---
+
+            Images include:
+
+            - SBOM
+            - OCI Metadata
+            - Build Provenance
+            - GitHub Attestations
+
+      # ----------------------------------------------------------
+      # Workflow Summary
+      # ----------------------------------------------------------
 
       - name: Release Summary
 
         run: |
 
           {
-            echo "# VeriFace AI Release"
+            echo "# 🚀 VeriFace AI Release"
             echo
             echo "| Artifact | Status |"
             echo "| --- | --- |"
             echo "| Backend Image | ✅ Published |"
             echo "| Frontend Image | ✅ Published |"
+            echo "| SBOM | ✅ Generated |"
+            echo "| Provenance | ✅ Generated |"
+            echo "| GitHub Attestation | ✅ Published |"
             echo "| GitHub Release | ✅ Created |"
             echo
-            echo "Version: \`${{ github.ref_name }}\`"
+            echo "## Version"
+            echo
+            echo "\`${{ github.ref_name }}\`"
+            echo
+            echo "## Backend Digest"
+            echo
+            echo "\`${{ steps.backend.outputs.digest }}\`"
+            echo
+            echo "## Frontend Digest"
+            echo
+            echo "\`${{ steps.frontend.outputs.digest }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
