@@ -40,15 +40,15 @@ show_health_diagnostics() {
 
     log_section "Container Status"
 
-    docker compose -f "$COMPOSE_FILE" ps || true
+    docker compose "${COMPOSE_ARGS[@]}" ps || true
 
     echo ""
 
-    for service in $(docker compose -f "$COMPOSE_FILE" config --services); do
+    for service in $(docker compose "${COMPOSE_ARGS[@]}" config --services); do
 
         container_id="$(
             docker compose \
-                -f "$COMPOSE_FILE" \
+                "${COMPOSE_ARGS[@]}" \
                 ps \
                 -q \
                 "$service"
@@ -91,7 +91,7 @@ cleanup() {
         log_section "Backend Logs"
 
         docker compose \
-            -f "$COMPOSE_FILE" \
+            "${COMPOSE_ARGS[@]}" \
             logs \
             --no-color \
             --tail=200 \
@@ -100,7 +100,7 @@ cleanup() {
         log_section "Web Logs"
 
         docker compose \
-            -f "$COMPOSE_FILE" \
+            "${COMPOSE_ARGS[@]}" \
             logs \
             --no-color \
             --tail=100 \
@@ -108,11 +108,11 @@ cleanup() {
 
         log_section "Healthcheck Logs"
 
-        for service in $(docker compose -f "$COMPOSE_FILE" config --services); do
+        for service in $(docker compose "${COMPOSE_ARGS[@]}" config --services); do
 
             container_id="$(
                 docker compose \
-                    -f "$COMPOSE_FILE" \
+                    "${COMPOSE_ARGS[@]}" \
                     ps \
                     -q \
                     "$service"
@@ -142,7 +142,7 @@ cleanup() {
     log_section "Docker Cleanup"
 
     docker compose \
-        -f "$COMPOSE_FILE" \
+        "${COMPOSE_ARGS[@]}" \
         down \
         --volumes \
         --remove-orphans || true
@@ -361,7 +361,7 @@ while true; do
 
         container_id="$(
             docker compose \
-                -f "${COMPOSE_ARGS[@]}" \
+                "${COMPOSE_ARGS[@]}" \
                 ps \
                 -q \
                 "$service"
@@ -493,7 +493,7 @@ echo "✓ All Docker services healthy"
 echo ""
 echo "[8/8] Final Docker verification..."
 
-docker compose -f "${COMPOSE_ARGS[@]}" ps
+docker compose "${COMPOSE_ARGS[@]}" ps
 
 log_section "Docker Verification Passed"
 
@@ -506,7 +506,7 @@ echo ""
 echo "Services:"
 
 docker compose \
-    -f "${COMPOSE_ARGS[@]}" \
+    "${COMPOSE_ARGS[@]}" \
     config \
     --services
 
