@@ -1,33 +1,6 @@
 name: veriface-ai
 
 services:
-  # ==========================================================
-  # PostgreSQL
-  # ==========================================================
-
-  postgres:
-    image: postgres:17-alpine
-    container_name: veriface-postgres
-
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
-    networks:
-      - veriface-network
 
   # ==========================================================
   # FastAPI Backend
@@ -47,28 +20,15 @@ services:
 
     environment:
       DATA_DIR: /app/data
-
-      # Legacy migration must not run during normal startup.
       MIGRATE_LEGACY_DB: "false"
-
-    depends_on:
-      postgres:
-        condition: service_healthy
 
     expose:
       - "8002"
 
     volumes:
-      # Application data
       - backend_data:/app/data
-
-      # Application-managed ML models
       - backend_models:/app/models
-
-      # DeepFace model weights
-      - deepface_weights:/root/.deepface/weights
-
-      # Application logs
+      - deepface_weights:/home/veriface/.deepface/weights
       - backend_logs:/app/logs
 
     healthcheck:
@@ -77,7 +37,7 @@ services:
           "CMD",
           "/app/.venv/bin/python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/', timeout=5)",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/', timeout=5)"
         ]
       interval: 30s
       timeout: 10s
@@ -108,7 +68,14 @@ services:
       - "80:8000"
 
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8000/"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--spider",
+          "-q",
+          "http://127.0.0.1:8000/"
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -122,7 +89,6 @@ services:
 # ==========================================================
 
 volumes:
-  postgres_data:
 
   backend_data:
 
@@ -137,5 +103,6 @@ volumes:
 # ==========================================================
 
 networks:
+
   veriface-network:
     driver: bridge
