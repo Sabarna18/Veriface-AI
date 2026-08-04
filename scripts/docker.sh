@@ -91,15 +91,6 @@ cleanup() {
             --tail=200 \
             backend || true
 
-        log_section "PostgreSQL Logs"
-
-        docker compose \
-            -f "$COMPOSE_FILE" \
-            logs \
-            --no-color \
-            --tail=100 \
-            postgres || true
-
         log_section "Web Logs"
 
         docker compose \
@@ -156,9 +147,13 @@ cleanup() {
     # ------------------------------------------------------
 
     if [[ "$CI_ENV_CREATED" == "true" ]]; then
-        echo "Removing temporary CI environment file..."
-        rm -f "$BACKEND_ENV_FILE"
+
+    rm -f "$BACKEND_ENV_FILE"
+
+    if [[ "${ORIGINAL_ENV_EXISTS:-false}" == "true" ]]; then
+        mv backend/.env.backup backend/.env
     fi
+fi
 
 
     if [[ "$exit_code" -eq 0 ]]; then
@@ -230,39 +225,25 @@ echo "✓ Docker environment available"
 echo ""
 echo "[3/8] Preparing CI environment..."
 
-if [[ ! -f "$BACKEND_ENV_FILE" ]]; then
-
-    echo "Generating temporary backend/.env"
-
-    cat > "$BACKEND_ENV_FILE" <<'EOF'
-# ==========================================================
-# VeriFace AI CI Environment
-# DO NOT use these credentials in production.
-# ==========================================================
-
-ENVIRONMENT=test
-
-SECRET_KEY=veriface-ci-only-secret-key-not-for-production
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=veriface
-
-DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/veriface
-
-MIGRATE_LEGACY_DB=false
-EOF
-
-    CI_ENV_CREATED=true
-
-    echo "✓ Temporary CI environment created"
-
-else
-
-    echo "✓ Existing backend/.env detected"
-
+if [[ ! -f backend/.env.ci ]]; then
+    echo "ERROR: backend/.env.ci not found"
+    exit 1
 fi
+
+if [[ -f backend/.env ]]; then
+    mv backend/.env backend/.env.backup
+    ORIGINAL_ENV_EXISTS=true
+fi
+
+cp backend/.env.ci backend/.env
+
+CI_ENV_CREATED=true
+
+echo "✓ CI environment prepared"
+
+set -a
+source backend/.env
+set +a
 
 
 # ----------------------------------------------------------
@@ -281,9 +262,8 @@ required_vars=(
     DATABASE_URL
     SECRET_KEY
     ACCESS_TOKEN_EXPIRE_MINUTES
-    POSTGRES_USER
-    POSTGRES_PASSWORD
-    POSTGRES_DB
+    SUPABASE_URL
+    SUPABASE_SERVICE_ROLE_KEY
 )
 
 for var in "${required_vars[@]}"; do
