@@ -156,5 +156,5 @@ exec uv run uvicorn \
     server:app \
     --app-dir /app/src \
     --host 0.0.0.0 \
-    --port 8002 \
+    --port "${PORT:-8002}"\
     --proxy-headers
