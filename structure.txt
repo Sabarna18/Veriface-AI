@@ -159,3 +159,5 @@ face-attendance-system/
 
 
 
+swagger docs = https://veriface-ai-backend-5f5y.onrender.com/docs
+health check = https://veriface-ai-backend-5f5y.onrender.com/health

@@ -26,7 +26,7 @@ def generate_embedding(image_path: str):
         detector_backend=DETECTOR,
         enforce_detection=False,
     )
-    
+
     print("After represent")
 
     if not result:
