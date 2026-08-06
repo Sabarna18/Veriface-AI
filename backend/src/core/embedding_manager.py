@@ -18,6 +18,7 @@ def generate_embedding(image_path: str):
         "detector_backend": "opencv"
     }
     """
+    print("Before represent")
 
     result = DeepFace.represent(
         img_path=image_path,
@@ -25,6 +26,8 @@ def generate_embedding(image_path: str):
         detector_backend=DETECTOR,
         enforce_detection=False,
     )
+    
+    print("After represent")
 
     if not result:
         return None
