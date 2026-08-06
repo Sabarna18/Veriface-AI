@@ -91,7 +91,7 @@ class Settings(BaseSettings):
     # Face Recognition
     # ==========================================================
 
-    MODEL_NAME: str = "Facenet"
+    MODEL_NAME: str = "ArcFace"
     DETECTOR_BACKEND: str = "opencv"
     DISTANCE_METRIC: str = "cosine"
     MATCH_THRESHOLD: float = 0.50
