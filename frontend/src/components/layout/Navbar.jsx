@@ -8,15 +8,14 @@ const Navbar = () => {
   const navigate = useNavigate();
   const { classroomId, clearClassroom } = useClassroomContext();
   const { admin, isAdmin, logout } = useAuth();
+  const APP_VERSION = import.meta.env.VITE_APP_VERSION || "dev";
 
-  const baseTheme =
-    "bg-gradient-to-r from-blue-600 to-indigo-700";
+  const baseTheme = "bg-gradient-to-r from-blue-600 to-indigo-700";
 
   const adminTheme =
     "bg-gradient-to-r from-slate-900 via-indigo-900 to-zinc-900";
 
   const navbarTheme = isAdmin ? adminTheme : baseTheme;
-
 
   const handleExitClassroom = () => {
     clearClassroom();
@@ -33,10 +32,11 @@ const Navbar = () => {
   };
 
   return (
-    <header className={`${navbarTheme} shadow-lg transition-colors duration-300`}>
+    <header
+      className={`${navbarTheme} shadow-lg transition-colors duration-300`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
-
           {/* ================= LEFT ================= */}
           <div className="flex items-center gap-4">
             <h2
@@ -45,6 +45,17 @@ const Navbar = () => {
             >
               Face Attendance System
             </h2>
+
+            <h2
+              className="text-xl sm:text-2xl font-bold text-white tracking-tight cursor-pointer hover:opacity-90"
+              onClick={() => navigate("/")}
+            >
+              Face Attendance System
+            </h2>
+
+            <span className="text-white/60 text-xs font-medium">
+              v{APP_VERSION}
+            </span>
 
             {/* 🔥 ACTIVE ADMIN BADGE */}
             {isAdmin && (

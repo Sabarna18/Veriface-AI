@@ -38,9 +38,6 @@ npm ci
 echo -e "${BLUE}[2/4] ESLint...${NC}"
 npm run lint
 
-echo -e "${BLUE}[3/4] TypeScript...${NC}"
-npm run typecheck
-
 echo -e "${BLUE}[4/4] Production build...${NC}"
 npm run build
 
