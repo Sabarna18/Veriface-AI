@@ -203,7 +203,7 @@ jobs:
           labels: ${{ steps.web_meta.outputs.labels }}
 
           build-args: |
-          APP_VERSION=${{ steps.version.outputs.version }}
+            APP_VERSION=${{ steps.version.outputs.version }}
 
           cache-from: type=gha,scope=web
 
