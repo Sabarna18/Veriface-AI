@@ -46,13 +46,6 @@ const Navbar = () => {
               Face Attendance System
             </h2>
 
-            <h2
-              className="text-xl sm:text-2xl font-bold text-white tracking-tight cursor-pointer hover:opacity-90"
-              onClick={() => navigate("/")}
-            >
-              Face Attendance System
-            </h2>
-
             <span className="text-white/60 text-xs font-medium">
               v{APP_VERSION}
             </span>

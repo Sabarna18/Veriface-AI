@@ -7,15 +7,27 @@ FROM node:22-alpine AS builder
 
 WORKDIR /frontend
 
+# ----------------------------------------------------------
+# Application version
+# Passed during Docker build:
+# --build-arg APP_VERSION=1.0.0
+# ----------------------------------------------------------
+
+ARG APP_VERSION=dev
+ENV VITE_APP_VERSION=${APP_VERSION}
+
 # Install dependencies first for better Docker layer caching
+
 COPY frontend/package*.json ./
 
 RUN npm ci
 
 # Copy frontend source
+
 COPY frontend/ .
 
 # Build production React application
+
 RUN npm run build
 
 
@@ -59,6 +71,7 @@ COPY --from=builder --chown=nginx:nginx \
 USER nginx
 
 # Nginx runs internally on unprivileged port 8000
+
 EXPOSE 8000
 
 CMD ["nginx", "-g", "daemon off;"]
