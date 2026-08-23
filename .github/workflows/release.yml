@@ -57,6 +57,23 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+
+
+# ----------------------------------------------------------
+# Extract Version
+# ----------------------------------------------------------
+
+
+
+      - name: Extract Version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building version: ${VERSION}"
+
+
 # ----------------------------------------------------------
 # Docker Buildx
 # ----------------------------------------------------------
@@ -185,6 +202,9 @@ jobs:
 
           labels: ${{ steps.web_meta.outputs.labels }}
 
+          build-args: |
+          APP_VERSION=${{ steps.version.outputs.version }}
+
           cache-from: type=gha,scope=web
 
           cache-to: type=gha,mode=max,scope=web
@@ -277,6 +297,7 @@ jobs:
             - Software Bill of Materials (SBOM)
             - SLSA Build Provenance
             - GitHub Artifact Attestations
+
 
 # ----------------------------------------------------------
 # Workflow Summary
