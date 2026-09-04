@@ -8,24 +8,21 @@
 #   Pull the latest released VeriFace AI backend image from
 #   GHCR and generate minimal legitimate database activity.
 #
-# Flow:
+# Activity:
 #
 #   Released GHCR Image
 #          ↓
 #   Temporary Python Container
 #          ↓
-#   PostgreSQL Connection
+#   PostgreSQL
 #          ↓
 #       SELECT 1
 #          ↓
 #       Container Exit
-#          ↓
-#        Cleanup
 #
 # IMPORTANT:
-#   The normal application entrypoint is deliberately bypassed.
-#   This prevents accidental Alembic migrations or application
-#   startup against the production database.
+#   The normal application entrypoint is bypassed.
+#   Alembic migrations are NOT executed.
 # ==========================================================
 
 set -Eeuo pipefail
@@ -51,7 +48,7 @@ ACTIVITY_CONTAINER="${ACTIVITY_CONTAINER:-veriface-cloud-activity}"
 
 
 # ==========================================================
-# Helpers
+# Logging
 # ==========================================================
 
 log() {
@@ -66,6 +63,10 @@ error() {
     exit 1
 }
 
+
+# ==========================================================
+# Cleanup
+# ==========================================================
 
 cleanup() {
 
@@ -89,7 +90,6 @@ cleanup() {
 }
 
 
-# Always clean up before exiting.
 trap cleanup EXIT
 
 
@@ -103,7 +103,7 @@ log "=============================================="
 
 
 # ==========================================================
-# Validate Dependencies
+# Validate Environment
 # ==========================================================
 
 log ""
@@ -127,21 +127,10 @@ command -v docker >/dev/null 2>&1 \
 
 
 # ==========================================================
-# Normalize GHCR Image Name
+# Normalize GHCR Image
 # ==========================================================
 
-# Docker requires repository names to be lowercase.
-#
-# Example:
-#
-#   Sabarna18/veriface-ai-backend
-#
-# becomes:
-#
-#   sabarna18/veriface-ai-backend
-#
-# GitHub repository owners can contain uppercase characters,
-# while Docker image repository references must be lowercase.
+# Docker repository names must be lowercase.
 
 IMAGE_NAME="$(printf '%s' "${RAW_IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
 
@@ -150,24 +139,53 @@ REGISTRY="$(printf '%s' "${REGISTRY}" | tr '[:upper:]' '[:lower:]')"
 IMAGE="${REGISTRY}/${IMAGE_NAME}:${VERSION}"
 
 
+# ==========================================================
+# Normalize Database URL
+# ==========================================================
+
+# GitHub Secrets can occasionally contain accidental leading
+# or trailing whitespace/newline characters.
+#
+# Remove surrounding whitespace without printing the secret.
+
+DATABASE_URL="$(printf '%s' "${DATABASE_URL}" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+
+
+# Convert SQLAlchemy's psycopg scheme into the standard
+# PostgreSQL URI accepted by psycopg.connect().
+
+DATABASE_URL_FOR_PSYCOPG="${DATABASE_URL}"
+
+if [[ "${DATABASE_URL_FOR_PSYCOPG}" == postgresql+psycopg://* ]]; then
+
+    DATABASE_URL_FOR_PSYCOPG="${DATABASE_URL_FOR_PSYCOPG#postgresql+psycopg://}"
+
+    DATABASE_URL_FOR_PSYCOPG="postgresql://${DATABASE_URL_FOR_PSYCOPG}"
+
+fi
+
+
+# ==========================================================
+# Basic Database URL Validation
+# ==========================================================
+
+case "${DATABASE_URL_FOR_PSYCOPG}" in
+
+    postgresql://*)
+        ;;
+    
+    *)
+        error "DATABASE_URL must use a PostgreSQL connection URL."
+        ;;
+
+esac
+
+
 log "✓ Environment validated."
 
 log ""
 log "Release version : ${VERSION}"
 log "GHCR image      : ${IMAGE}"
-
-
-# ==========================================================
-# Validate Image Reference
-# ==========================================================
-
-case "${IMAGE}" in
-
-    *[A-Z]*)
-        error "Image reference still contains uppercase characters: ${IMAGE}"
-        ;;
-
-esac
 
 
 # ==========================================================
@@ -183,7 +201,7 @@ log "✓ Released image pulled successfully."
 
 
 # ==========================================================
-# Generate Database Activity
+# Database Activity
 # ==========================================================
 
 log ""
@@ -191,44 +209,6 @@ log "[2/4] Generating database activity..."
 
 log "Database operation: SELECT 1"
 
-
-# ----------------------------------------------------------
-# Normalize SQLAlchemy-style DATABASE_URL
-#
-# Application configuration commonly uses:
-#
-#   postgresql+psycopg://
-#
-# psycopg.connect() expects:
-#
-#   postgresql://
-# ----------------------------------------------------------
-
-DATABASE_URL_FOR_PSYCOPG="${DATABASE_URL}"
-
-if [[ "${DATABASE_URL_FOR_PSYCOPG}" == postgresql+psycopg://* ]]; then
-
-    DATABASE_URL_FOR_PSYCOPG="${DATABASE_URL_FOR_PSYCOPG/postgresql+psycopg:\/\//postgresql:\/\/}"
-
-fi
-
-
-# ----------------------------------------------------------
-# Run Python from the released image
-#
-# --entrypoint python bypasses the application's normal
-# docker-entrypoint.sh.
-#
-# Therefore:
-#
-#   NO Alembic migration
-#   NO Uvicorn startup
-#   NO application writes
-#
-# Only:
-#
-#   connect → SELECT 1 → exit
-# ----------------------------------------------------------
 
 docker run \
     --name "${ACTIVITY_CONTAINER}" \
@@ -349,7 +329,7 @@ fi
 
 
 # ==========================================================
-# Final Verification
+# Completion
 # ==========================================================
 
 log ""
