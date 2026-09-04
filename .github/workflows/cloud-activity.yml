@@ -1,0 +1,164 @@
+name: Cloud Activity
+
+# ==========================================================
+# Schedule
+# ==========================================================
+
+on:
+
+
+  push:
+    branches:
+      - main
+      - develop
+      - "feature/**"
+      - "fix/**"
+
+
+  # Every day at 12:30 UTC
+  schedule:
+    - cron: "30 12 * * *"
+
+  # Allows manual execution from GitHub Actions
+  workflow_dispatch:
+
+
+# ==========================================================
+# Permissions
+# ==========================================================
+
+permissions:
+  contents: read
+  packages: read
+
+
+# ==========================================================
+# Environment
+# ==========================================================
+
+env:
+
+  REGISTRY: ghcr.io
+
+  IMAGE_NAME: ${{ github.repository_owner }}/veriface-ai-backend
+
+
+# ==========================================================
+# Cloud Activity
+# ==========================================================
+
+jobs:
+
+  activity:
+
+    name: Generate Cloud Activity
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        shell: bash
+
+
+    steps:
+
+      # ------------------------------------------------------
+      # Checkout
+      # ------------------------------------------------------
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+
+      # ------------------------------------------------------
+      # Determine Latest Release
+      # ------------------------------------------------------
+
+      - name: Determine Latest Release
+        id: release
+        run: |
+
+          echo "Finding latest released version..."
+
+          VERSION="$(git tag --list 'v*' --sort=-version:refname | head -n 1)"
+
+          if [ -z "$VERSION" ]; then
+            echo "No version tag found."
+            exit 1
+          fi
+
+          VERSION="${VERSION#v}"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+          echo "Latest release: ${VERSION}"
+
+
+      # ------------------------------------------------------
+      # Login GHCR
+      # ------------------------------------------------------
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+
+      # ------------------------------------------------------
+      # Make Script Executable
+      # ------------------------------------------------------
+
+      - name: Prepare Activity Script
+        run: |
+
+          chmod +x scripts/cloud-activity.sh
+
+
+      # ------------------------------------------------------
+      # Generate Activity
+      # ------------------------------------------------------
+
+      - name: Generate Cloud Activity
+        env:
+
+          VERSION: ${{ steps.release.outputs.version }}
+
+          DATABASE_URL: ${{ secrets.CLOUD_ACTIVITY_DATABASE_URL }}
+
+          HEALTH_URL: ${{ secrets.CLOUD_ACTIVITY_HEALTH_URL }}
+
+        run: |
+
+          ./scripts/cloud-activity.sh
+
+
+      # ------------------------------------------------------
+      # Summary
+      # ------------------------------------------------------
+
+      - name: Generate Summary
+        if: always()
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+
+        run: |
+
+          {
+            echo "# ☁️ VeriFace AI Cloud Activity"
+            echo
+            echo "| Property | Value |"
+            echo "|---|---|"
+            echo "| Release | \`v${VERSION}\` |"
+            echo "| Image | \`${REGISTRY}/${IMAGE_NAME}:${VERSION}\` |"
+            echo "| Schedule | Daily |"
+            echo "| Database Activity | ✅ |"
+            echo "| Temporary Container | Removed |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
