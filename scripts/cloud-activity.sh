@@ -5,19 +5,27 @@
 # Cloud Activity / Keep-Alive Script
 #
 # Purpose:
-#   Generate minimal legitimate database activity using
-#   the released VeriFace AI backend image from GHCR.
+#   Pull the latest released VeriFace AI backend image from
+#   GHCR and generate minimal legitimate database activity.
 #
-# The script:
-#   1. Pulls a released GHCR backend image
-#   2. Runs the image as a temporary database client
-#   3. Executes a harmless SELECT 1
-#   4. Optionally checks the deployed application
-#   5. Removes the temporary container
+# Flow:
+#
+#   Released GHCR Image
+#          ↓
+#   Temporary Python Container
+#          ↓
+#   PostgreSQL Connection
+#          ↓
+#       SELECT 1
+#          ↓
+#       Container Exit
+#          ↓
+#        Cleanup
 #
 # IMPORTANT:
-#   The normal application entrypoint is NOT executed.
-#   This prevents accidental production migrations.
+#   The normal application entrypoint is deliberately bypassed.
+#   This prevents accidental Alembic migrations or application
+#   startup against the production database.
 # ==========================================================
 
 set -Eeuo pipefail
@@ -28,28 +36,30 @@ set -Eeuo pipefail
 # ==========================================================
 
 REGISTRY="${REGISTRY:-ghcr.io}"
-IMAGE_NAME="${IMAGE_NAME:-${GITHUB_REPOSITORY_OWNER:-}/veriface-ai-backend}"
+
+RAW_IMAGE_NAME="${IMAGE_NAME:-${GITHUB_REPOSITORY_OWNER:-}/veriface-ai-backend}"
 
 VERSION="${VERSION:-}"
 
 DATABASE_URL="${DATABASE_URL:-}"
 
-ACTIVITY_CONTAINER="${ACTIVITY_CONTAINER:-veriface-cloud-activity}"
-
 HEALTH_URL="${HEALTH_URL:-}"
 
 REQUEST_TIMEOUT="${REQUEST_TIMEOUT:-15}"
 
+ACTIVITY_CONTAINER="${ACTIVITY_CONTAINER:-veriface-cloud-activity}"
+
 
 # ==========================================================
-# Logging
+# Helpers
 # ==========================================================
 
 log() {
     echo "[cloud-activity] $*"
 }
 
-fail() {
+
+error() {
     echo ""
     echo "[cloud-activity] ERROR: $*" >&2
     echo ""
@@ -57,55 +67,107 @@ fail() {
 }
 
 
-# ==========================================================
-# Cleanup
-# ==========================================================
-
 cleanup() {
+
+    log ""
+    log "Cleaning up temporary resources..."
 
     if docker ps -a \
         --format '{{.Names}}' |
-        grep -qx "${ACTIVITY_CONTAINER}"; then
+        grep -Fxq "${ACTIVITY_CONTAINER}"; then
 
-        log "Removing temporary container..."
+        docker rm -f "${ACTIVITY_CONTAINER}" \
+            >/dev/null 2>&1 || true
 
-        docker rm -f "${ACTIVITY_CONTAINER}" >/dev/null 2>&1 || true
+        log "✓ Temporary container removed."
+
+    else
+
+        log "✓ No temporary container found."
+
     fi
 }
 
+
+# Always clean up before exiting.
 trap cleanup EXIT
 
 
 # ==========================================================
-# Validation
+# Header
 # ==========================================================
 
 log "=============================================="
 log " VeriFace AI Cloud Activity"
 log "=============================================="
 
+
+# ==========================================================
+# Validate Dependencies
+# ==========================================================
+
+log ""
+log "[0/4] Validating environment..."
+
+
 command -v docker >/dev/null 2>&1 \
-    || fail "Docker is not installed."
+    || error "Docker is not installed."
 
-[ -n "${IMAGE_NAME}" ] \
-    || fail "IMAGE_NAME is not configured."
-
-[ -n "${DATABASE_URL}" ] \
-    || fail "DATABASE_URL is not configured."
 
 [ -n "${VERSION}" ] \
-    || fail "VERSION is not configured."
+    || error "VERSION is not configured."
+
+
+[ -n "${DATABASE_URL}" ] \
+    || error "DATABASE_URL is not configured."
+
+
+[ -n "${RAW_IMAGE_NAME}" ] \
+    || error "IMAGE_NAME is not configured."
 
 
 # ==========================================================
-# Image
+# Normalize GHCR Image Name
 # ==========================================================
+
+# Docker requires repository names to be lowercase.
+#
+# Example:
+#
+#   Sabarna18/veriface-ai-backend
+#
+# becomes:
+#
+#   sabarna18/veriface-ai-backend
+#
+# GitHub repository owners can contain uppercase characters,
+# while Docker image repository references must be lowercase.
+
+IMAGE_NAME="$(printf '%s' "${RAW_IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
+
+REGISTRY="$(printf '%s' "${REGISTRY}" | tr '[:upper:]' '[:lower:]')"
 
 IMAGE="${REGISTRY}/${IMAGE_NAME}:${VERSION}"
 
+
+log "✓ Environment validated."
+
 log ""
-log "Released image:"
-log "${IMAGE}"
+log "Release version : ${VERSION}"
+log "GHCR image      : ${IMAGE}"
+
+
+# ==========================================================
+# Validate Image Reference
+# ==========================================================
+
+case "${IMAGE}" in
+
+    *[A-Z]*)
+        error "Image reference still contains uppercase characters: ${IMAGE}"
+        ;;
+
+esac
 
 
 # ==========================================================
@@ -113,70 +175,122 @@ log "${IMAGE}"
 # ==========================================================
 
 log ""
-log "[1/3] Pulling released GHCR image..."
+log "[1/4] Pulling released GHCR image..."
 
 docker pull "${IMAGE}"
 
-log "✓ Released image available."
+log "✓ Released image pulled successfully."
 
 
 # ==========================================================
-# Database Activity
+# Generate Database Activity
 # ==========================================================
 
 log ""
-log "[2/3] Generating database activity..."
+log "[2/4] Generating database activity..."
+
+log "Database operation: SELECT 1"
+
+
+# ----------------------------------------------------------
+# Normalize SQLAlchemy-style DATABASE_URL
+#
+# Application configuration commonly uses:
+#
+#   postgresql+psycopg://
+#
+# psycopg.connect() expects:
+#
+#   postgresql://
+# ----------------------------------------------------------
+
+DATABASE_URL_FOR_PSYCOPG="${DATABASE_URL}"
+
+if [[ "${DATABASE_URL_FOR_PSYCOPG}" == postgresql+psycopg://* ]]; then
+
+    DATABASE_URL_FOR_PSYCOPG="${DATABASE_URL_FOR_PSYCOPG/postgresql+psycopg:\/\//postgresql:\/\/}"
+
+fi
+
+
+# ----------------------------------------------------------
+# Run Python from the released image
+#
+# --entrypoint python bypasses the application's normal
+# docker-entrypoint.sh.
+#
+# Therefore:
+#
+#   NO Alembic migration
+#   NO Uvicorn startup
+#   NO application writes
+#
+# Only:
+#
+#   connect → SELECT 1 → exit
+# ----------------------------------------------------------
 
 docker run \
     --name "${ACTIVITY_CONTAINER}" \
     --rm \
     --entrypoint python \
-    -e "DATABASE_URL=${DATABASE_URL}" \
+    -e "DATABASE_URL=${DATABASE_URL_FOR_PSYCOPG}" \
     "${IMAGE}" \
     -c '
 import os
 import sys
 
 try:
+
     import psycopg
 
     database_url = os.environ["DATABASE_URL"]
 
-    print("Connecting to database...")
+    print("Connecting to PostgreSQL...")
 
-    with psycopg.connect(database_url, connect_timeout=10) as connection:
+    with psycopg.connect(
+        database_url,
+        connect_timeout=10,
+    ) as connection:
+
+        print("Connection established.")
+
         with connection.cursor() as cursor:
 
-            cursor.execute("""
-                SELECT
-                    1 AS activity_check
-            """)
+            cursor.execute("SELECT 1;")
 
             result = cursor.fetchone()
 
+            print(f"Database response: {result}")
+
             if result != (1,):
-                print("Unexpected database response:", result)
+                print("Unexpected database response.")
                 sys.exit(1)
 
-            print("Database query successful.")
+    print("Database activity completed successfully.")
 
 except Exception as exc:
-    print("Database activity failed:", exc)
+
+    print(f"Database activity failed: {exc}")
+
     sys.exit(1)
 '
 
-log "✓ Database activity generated."
+
+log "✓ Database activity generated successfully."
 
 
 # ==========================================================
-# Optional HTTP Activity
+# Optional Production HTTP Activity
 # ==========================================================
 
 if [ -n "${HEALTH_URL}" ]; then
 
     log ""
-    log "[3/3] Checking deployed VeriFace API..."
-    log "${HEALTH_URL}"
+    log "[3/4] Checking deployed VeriFace API..."
+
+    log "URL: ${HEALTH_URL}"
+
 
     docker run \
         --name "${ACTIVITY_CONTAINER}" \
@@ -190,17 +304,18 @@ import urllib.request
 url = '${HEALTH_URL}'
 
 try:
+
     request = urllib.request.Request(
         url,
         method='GET',
         headers={
             'User-Agent': 'VeriFace-Cloud-Activity/1.0'
-        }
+        },
     )
 
     with urllib.request.urlopen(
         request,
-        timeout=${REQUEST_TIMEOUT}
+        timeout=${REQUEST_TIMEOUT},
     ) as response:
 
         status = response.status
@@ -208,35 +323,46 @@ try:
         print(f'HTTP status: {status}')
 
         if status >= 400:
+            print('Health endpoint returned an error.')
             sys.exit(1)
 
+        print('HTTP activity completed successfully.')
+
 except Exception as exc:
-    print('HTTP activity failed:', exc)
+
+    print(f'HTTP activity failed: {exc}')
+
     sys.exit(1)
 "
 
-    log "✓ HTTP activity generated."
+
+    log "✓ Production API activity completed successfully."
 
 else
 
     log ""
-    log "[3/3] HTTP activity disabled."
-    log "Set HEALTH_URL to enable it."
+    log "[3/4] Production HTTP activity skipped."
+
+    log "HEALTH_URL is not configured."
 
 fi
 
 
 # ==========================================================
-# Completion
+# Final Verification
 # ==========================================================
+
+log ""
+log "[4/4] Activity verification complete."
 
 log ""
 log "=============================================="
 log " Cloud Activity Completed Successfully"
 log "=============================================="
 log ""
-log "Image : ${IMAGE}"
-log "Database : activity generated"
-log "HTTP : ${HEALTH_URL:-disabled}"
+log "Release : v${VERSION}"
+log "Image   : ${IMAGE}"
+log "Database: SELECT 1"
+log "HTTP    : ${HEALTH_URL:-disabled}"
 log ""
 
