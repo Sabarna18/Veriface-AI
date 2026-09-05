@@ -6,6 +6,9 @@ name: Cloud Activity
 
 on:
 
+   # Every day at 12:30 UTC
+  schedule:
+    - cron: "30 12 * * *"
 
   push:
     branches:
@@ -14,13 +17,8 @@ on:
       - "feature/**"
       - "fix/**"
 
-
-  # Every day at 12:30 UTC
-  schedule:
-    - cron: "30 12 * * *"
-
   # Allows manual execution from GitHub Actions
-  workflow_dispatch:
+  workflow_dispatch:git 
 
 
 # ==========================================================
