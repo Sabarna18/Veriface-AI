@@ -5,8 +5,7 @@ name: Cloud Activity
 # ==========================================================
 
 on:
-
-   # Every day at 12:30 UTC
+  # Every day at 12:30 UTC
   schedule:
     - cron: "30 12 * * *"
 
@@ -18,8 +17,7 @@ on:
       - "fix/**"
 
   # Allows manual execution from GitHub Actions
-  workflow_dispatch:git 
-
+  workflow_dispatch:
 
 # ==========================================================
 # Permissions
@@ -29,39 +27,29 @@ permissions:
   contents: read
   packages: read
 
-
 # ==========================================================
 # Environment
 # ==========================================================
 
 env:
-
   REGISTRY: ghcr.io
-
   IMAGE_NAME: ${{ github.repository_owner }}/veriface-ai-backend
-
 
 # ==========================================================
 # Cloud Activity
 # ==========================================================
 
 jobs:
-
   activity:
-
     name: Generate Cloud Activity
-
     runs-on: ubuntu-latest
-
     timeout-minutes: 10
 
     defaults:
       run:
         shell: bash
 
-
     steps:
-
       # ------------------------------------------------------
       # Checkout
       # ------------------------------------------------------
@@ -71,7 +59,6 @@ jobs:
         with:
           fetch-depth: 0
 
-
       # ------------------------------------------------------
       # Determine Latest Release
       # ------------------------------------------------------
@@ -79,7 +66,6 @@ jobs:
       - name: Determine Latest Release
         id: release
         run: |
-
           echo "Finding latest released version..."
 
           VERSION="$(git tag --list 'v*' --sort=-version:refname | head -n 1)"
@@ -92,9 +78,7 @@ jobs:
           VERSION="${VERSION#v}"
 
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
           echo "Latest release: ${VERSION}"
-
 
       # ------------------------------------------------------
       # Login GHCR
@@ -102,12 +86,10 @@ jobs:
 
       - name: Login to GHCR
         uses: docker/login-action@v3
-
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
 
       # ------------------------------------------------------
       # Make Script Executable
@@ -115,9 +97,7 @@ jobs:
 
       - name: Prepare Activity Script
         run: |
-
           chmod +x scripts/cloud-activity.sh
-
 
       # ------------------------------------------------------
       # Generate Activity
@@ -125,17 +105,11 @@ jobs:
 
       - name: Generate Cloud Activity
         env:
-
           VERSION: ${{ steps.release.outputs.version }}
-
           DATABASE_URL: ${{ secrets.CLOUD_ACTIVITY_DATABASE_URL }}
-
           HEALTH_URL: ${{ secrets.CLOUD_ACTIVITY_HEALTH_URL }}
-
         run: |
-
           ./scripts/cloud-activity.sh
-
 
       # ------------------------------------------------------
       # Summary
@@ -145,9 +119,7 @@ jobs:
         if: always()
         env:
           VERSION: ${{ steps.release.outputs.version }}
-
         run: |
-
           {
             echo "# ☁️ VeriFace AI Cloud Activity"
             echo
@@ -159,4 +131,3 @@ jobs:
             echo "| Database Activity | ✅ |"
             echo "| Temporary Container | Removed |"
           } >> "$GITHUB_STEP_SUMMARY"
-
