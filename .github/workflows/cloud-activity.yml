@@ -1,63 +1,89 @@
+# ============================================================
+# VeriFace AI
+# Cloud Activity
+#
+# Purpose:
+#   Generate legitimate periodic activity against the
+#   production cloud services used by VeriFace AI.
+#
+# Services:
+#
+#   1. Neon PostgreSQL
+#      └── SELECT 1
+#
+#   2. Supabase Storage
+#      └── List objects in face-images bucket
+#
+# This workflow is especially useful while the application
+# has no active users.
+# ============================================================
+
 name: Cloud Activity
 
-# ==========================================================
+# ============================================================
 # Schedule
-# ==========================================================
+# ============================================================
 
 on:
+
   # Every day at 12:30 UTC
+  # = 18:00 IST
   schedule:
     - cron: "30 12 * * *"
-
-  push:
-    branches:
-      - main
-      - develop
-      - "feature/**"
-      - "fix/**"
 
   # Allows manual execution from GitHub Actions
   workflow_dispatch:
 
-# ==========================================================
+
+# ============================================================
 # Permissions
-# ==========================================================
+# ============================================================
 
 permissions:
   contents: read
   packages: read
 
-# ==========================================================
+
+# ============================================================
 # Environment
-# ==========================================================
+# ============================================================
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/veriface-ai-backend
 
-# ==========================================================
+
+# ============================================================
 # Cloud Activity
-# ==========================================================
+# ============================================================
 
 jobs:
+
   activity:
+
     name: Generate Cloud Activity
+
     runs-on: ubuntu-latest
+
     timeout-minutes: 10
 
     defaults:
       run:
         shell: bash
 
+
     steps:
+
       # ------------------------------------------------------
       # Checkout
       # ------------------------------------------------------
 
       - name: Checkout Repository
         uses: actions/checkout@v4
+
         with:
           fetch-depth: 0
+
 
       # ------------------------------------------------------
       # Determine Latest Release
@@ -65,20 +91,25 @@ jobs:
 
       - name: Determine Latest Release
         id: release
+
         run: |
+          echo "============================================================"
           echo "Finding latest released version..."
+          echo "============================================================"
 
           VERSION="$(git tag --list 'v*' --sort=-version:refname | head -n 1)"
 
           if [ -z "$VERSION" ]; then
-            echo "No version tag found."
+            echo "ERROR: No version tag found."
             exit 1
           fi
 
           VERSION="${VERSION#v}"
 
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Latest release: ${VERSION}"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
 
       # ------------------------------------------------------
       # Login GHCR
@@ -86,40 +117,85 @@ jobs:
 
       - name: Login to GHCR
         uses: docker/login-action@v3
+
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+
       # ------------------------------------------------------
-      # Make Script Executable
+      # Prepare Activity Script
       # ------------------------------------------------------
 
       - name: Prepare Activity Script
+
         run: |
           chmod +x scripts/cloud-activity.sh
 
-      # ------------------------------------------------------
-      # Generate Activity
-      # ------------------------------------------------------
+          echo "✓ Cloud activity script prepared."
+
+
+      # ======================================================
+      # Generate Neon + Supabase Activity
+      # ======================================================
 
       - name: Generate Cloud Activity
+
         env:
+
+          # --------------------------------------------------
+          # Release
+          # --------------------------------------------------
+
           VERSION: ${{ steps.release.outputs.version }}
+
+          # --------------------------------------------------
+          # Neon PostgreSQL
+          # --------------------------------------------------
+
           DATABASE_URL: ${{ secrets.CLOUD_ACTIVITY_DATABASE_URL }}
+
+          # --------------------------------------------------
+          # Optional VeriFace API health check
+          # --------------------------------------------------
+
           HEALTH_URL: ${{ secrets.CLOUD_ACTIVITY_HEALTH_URL }}
+
+          # --------------------------------------------------
+          # Supabase
+          # --------------------------------------------------
+
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+          SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET }}
+
         run: |
+
+          echo ""
+          echo "============================================================"
+          echo " VeriFace AI — Cloud Activity"
+          echo "============================================================"
+          echo ""
+
           ./scripts/cloud-activity.sh
 
-      # ------------------------------------------------------
+
+      # ======================================================
       # Summary
-      # ------------------------------------------------------
+      # ======================================================
 
       - name: Generate Summary
+
         if: always()
+
         env:
           VERSION: ${{ steps.release.outputs.version }}
+
         run: |
+
           {
             echo "# ☁️ VeriFace AI Cloud Activity"
             echo
@@ -128,6 +204,9 @@ jobs:
             echo "| Release | \`v${VERSION}\` |"
             echo "| Image | \`${REGISTRY}/${IMAGE_NAME}:${VERSION}\` |"
             echo "| Schedule | Daily |"
-            echo "| Database Activity | ✅ |"
+            echo "| Neon Activity | SELECT 1 |"
+            echo "| Supabase Activity | Storage bucket listing |"
+            echo "| Bucket | \`face-images\` |"
             echo "| Temporary Container | Removed |"
           } >> "$GITHUB_STEP_SUMMARY"
+
